@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { SecurityLog } from './entities/security-log.entity';
 import { createHash, createHmac } from 'crypto';
 
-const GENESIS = process.env.GENESIS
+const GENESIS = 'GENESIS';
 export interface RecordInput {
   event: string;
   userId?: string | null;
