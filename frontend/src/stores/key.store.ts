@@ -20,7 +20,7 @@ export const KeyStore = create<KeyState>((set, get) => ({
     lockReason: null,
 
     unlock: async (password, bundle) => {
-        const masterKey = await deriveMasterKey(password, bundle.kdfSalt, bundle.kdfIterations);
+        const masterKey = await deriveMasterKey(password, bundle.kdfSalt);
         const encryptionKey = await deriveEncryptionKey(masterKey);
         if (!(await checkVerifier(encryptionKey, bundle.verifier))) {
             return false;
@@ -32,15 +32,17 @@ export const KeyStore = create<KeyState>((set, get) => ({
     setKey: (encryptionKey) => set({ encryptionKey, unlocked: true, lockReason: null }),
     lock: (reason = 'manual') => {
         const key = get().encryptionKey;
-        if (key) key.fill(0);
+        if (key) {
+            key.fill(0);
+        }
         set({ encryptionKey: null, unlocked: false, lockReason: reason });
     },
 }));
 
-export const computeAuthHash = async (password: string, kdfSalt: string, iterations: number,) => {
-    const masterKey = await deriveMasterKey(password, kdfSalt, iterations);
+export const computeAuthHash = async (password: string, kdfSalt: string) => {
+    const masterKey = await deriveMasterKey(password, kdfSalt);
     return {
-        authHash: await deriveAuthHash(masterKey, password),
+        authHash: await deriveAuthHash(masterKey),
         encryptionKey: await deriveEncryptionKey(masterKey),
     };
 };

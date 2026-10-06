@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { computeAuthHash, KeyStore } from '@/stores/key.store';
-import { generateKdfSalt, KDF_ITERATIONS } from '@/libs/crypto/kdf';
+import { generateKdfSalt } from '@/libs/crypto/kdf';
 import { makeVerifier, checkVerifier } from '@/libs/crypto/vault';
 import { authApi } from '../api/auth.api';
 
@@ -11,16 +11,13 @@ export function useRegister() {
     return useMutation({
         mutationFn: async (input: { name: string; email: string; password: string }) => {
             const kdfSalt = generateKdfSalt();
-            const { authHash, encryptionKey } = await computeAuthHash(
-                input.password, kdfSalt, KDF_ITERATIONS,
-            );
+            const { authHash, encryptionKey } = await computeAuthHash(input.password, kdfSalt);
             const verifier = await makeVerifier(encryptionKey);
             const res = await authApi.register({
                 name: input.name,
                 email: input.email,
                 authHash,
                 kdfSalt,
-                kdfIterations: KDF_ITERATIONS,
                 verifier,
             });
             if (res.ok) {
@@ -37,9 +34,7 @@ export function useLogin() {
     return useMutation({
         mutationFn: async (input: { email: string; password: string }) => {
             const params = await authApi.kdfParams(input.email);
-            const { authHash, encryptionKey } = await computeAuthHash(
-                input.password, params.kdfSalt, params.kdfIterations,
-            );
+            const { authHash, encryptionKey } = await computeAuthHash(input.password, params.kdfSalt);
             const res = await authApi.login({ email: input.email, authHash });
 
             if (res.ok && res.data?.verifier && (await checkVerifier(encryptionKey, res.data.verifier))) {
@@ -57,9 +52,7 @@ export function useVerify2fa() {
         mutationFn: async (input: { code: string; password: string }) => {
             const res = await authApi.verify2fa(input.code);
             if (res.ok && res.data?.verifier && res.data.kdfSalt) {
-                const { encryptionKey } = await computeAuthHash(
-                    input.password, res.data.kdfSalt, res.data.kdfIterations ?? 600000,
-                );
+                const { encryptionKey } = await computeAuthHash(input.password, res.data.kdfSalt);
                 if (await checkVerifier(encryptionKey, res.data.verifier)) {
                     KeyStore.getState().setKey(encryptionKey);
                     await qc.invalidateQueries({ queryKey: ['session'] });
@@ -79,5 +72,12 @@ export function useLogout() {
             await qc.invalidateQueries({ queryKey: ['session'] });
 
         },
+    });
+}
+export function useDismissAlert() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: () => authApi.dismissAlert(),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['session'] }),
     });
 }

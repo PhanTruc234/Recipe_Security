@@ -8,11 +8,11 @@ import { SecurityLog } from '../security-log/entities/security-log.entity';
 import { SecurityLogModule } from '../security-log/security-log.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([User, Credential, SecurityLog]),
-        SecurityLogModule,
-    ],
-    controllers: [AdminController],
-    providers: [AdminService],
+  imports: [
+    TypeOrmModule.forFeature([User, Credential, SecurityLog]),
+    SecurityLogModule,
+  ],
+  controllers: [AdminController],
+  providers: [AdminService],
 })
-export class AdminModule { }
+export class AdminModule {}

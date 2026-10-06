@@ -10,4 +10,4 @@ import { SecurityLog } from './entities/security-log.entity';
   providers: [SecurityLogService],
   exports: [SecurityLogService],
 })
-export class SecurityLogModule { }
+export class SecurityLogModule {}

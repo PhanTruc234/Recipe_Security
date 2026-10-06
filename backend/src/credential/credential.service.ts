@@ -8,7 +8,8 @@ import { CreateCredentialDto } from './dto/create-credential.dto';
 export class CredentialService {
   constructor(
     @InjectRepository(Credential)
-    private readonly credentialRepo: Repository<Credential>) { }
+    private readonly credentialRepo: Repository<Credential>,
+  ) {}
   private async findOwned(id: string, userId: string): Promise<Credential> {
     const item = await this.credentialRepo.findOne({ where: { id } });
     if (!item || item.userId !== userId) {
@@ -19,7 +20,7 @@ export class CredentialService {
   async listByUser(userId: string) {
     return await this.credentialRepo.find({
       where: { userId },
-      order: { updatedAt: "DESC" },
+      order: { updatedAt: 'DESC' },
       select: {
         id: true,
         ciphertext: true,
@@ -27,7 +28,7 @@ export class CredentialService {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    });
   }
   async create(userId: string, dto: CreateCredentialDto) {
     const item = this.credentialRepo.create({ userId, ...dto });
@@ -35,7 +36,7 @@ export class CredentialService {
     return {
       id: saved.id,
       createdAt: saved.createdAt,
-      updatedAt: saved.updatedAt
+      updatedAt: saved.updatedAt,
     };
   }
   async update(id: string, userId: string, dto: CreateCredentialDto) {

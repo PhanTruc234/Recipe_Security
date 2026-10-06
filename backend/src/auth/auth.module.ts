@@ -13,4 +13,4 @@ import { CryptoService } from './crypto.service';
   providers: [AuthService, TotpService, CryptoService],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

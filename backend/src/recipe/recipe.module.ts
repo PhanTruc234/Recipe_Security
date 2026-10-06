@@ -8,4 +8,4 @@ import { SecurityLogModule } from '../security-log/security-log.module';
   controllers: [RecipeController],
   providers: [RecipeService],
 })
-export class RecipeModule { }
+export class RecipeModule {}

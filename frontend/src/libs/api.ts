@@ -20,6 +20,7 @@ export class ApiError extends Error {
 const axiosClient = axios.create({
     baseURL: '/api',
     withCredentials: true,
+    withXSRFToken: true,
     validateStatus: () => true,
 });
 axiosClient.interceptors.response.use((res) => {

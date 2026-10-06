@@ -23,4 +23,5 @@ export const authApi = {
     twofaSetup: () => apiRequest<Setup2faResponse>({ url: '/auth/2fa/setup', method: 'POST' }),
     twofaEnable: (code: string) => apiRequest<Enable2faResponse>({ url: '/auth/2fa/enable', method: 'POST', data: { code } }),
     twofaDisable: (code: string) => apiRequest<OkResponse>({ url: '/auth/2fa/disable', method: 'POST', data: { code } }),
+    dismissAlert: () => apiRequest({ url: '/auth/alert/dismiss', method: 'POST' }),
 };

@@ -36,13 +36,11 @@ export interface NewDeviceAlert {
 
 export interface KdfParams {
     kdfSalt: string;
-    kdfIterations: number;
 }
 
 export interface KeyBundle {
     verifier: string;
     kdfSalt: string;
-    kdfIterations: number;
 }
 
 export interface AuthResponse extends Partial<KeyBundle> {
@@ -55,7 +53,6 @@ export interface RegisterPayload {
     email: string;
     authHash: string;
     kdfSalt: string;
-    kdfIterations: number;
     verifier: string;
 }
 

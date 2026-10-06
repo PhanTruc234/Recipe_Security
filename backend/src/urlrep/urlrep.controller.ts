@@ -1,4 +1,12 @@
-import { Body, Controller, Headers, Ip, Post, Session, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Headers,
+  Ip,
+  Post,
+  Session,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { SessionData } from 'express-session';
 import { VaultGuard } from '../auth/guards/vault.guard';
@@ -12,7 +20,7 @@ export class UrlrepController {
   constructor(
     private readonly urlrep: UrlrepService,
     private readonly securityLog: SecurityLogService,
-  ) { }
+  ) {}
 
   @Throttle({ default: { limit: 15, ttl: 60000 } })
   @Post('reputation')
@@ -23,12 +31,18 @@ export class UrlrepController {
     @Headers('user-agent') userAgent: string,
   ) {
     if (!this.urlrep.anyProviderConfigured()) {
-      return { configured: false, message: 'Server chưa cấu hình API key Safe Browsing/VirusTotal' };
+      return {
+        configured: false,
+        message: 'Server chưa cấu hình API key Safe Browsing/VirusTotal',
+      };
     }
     const domain = new URL(dto.url).hostname;
     const result = await this.urlrep.checkReputation(dto.url, domain);
     await this.securityLog.record({
-      event: 'url_reputation_checked', userId: session.userId, ip, userAgent,
+      event: 'url_reputation_checked',
+      userId: session.userId,
+      ip,
+      userAgent,
       context: { level: result.level },
     });
     return { configured: true, ...result };

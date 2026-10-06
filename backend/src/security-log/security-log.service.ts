@@ -28,9 +28,9 @@ export class SecurityLogService {
   constructor(
     @InjectRepository(SecurityLog)
     private readonly repo: Repository<SecurityLog>,
-  ) { }
+  ) {}
   private auditKey(): Buffer {
-    return createHash('sha256').update(process.env.AUDIT_LOG_KEY).digest()
+    return createHash('sha256').update(process.env.AUDIT_LOG_KEY).digest();
   }
   private stableStringify(v: unknown): string {
     if (v === null || typeof v !== 'object') {
@@ -40,9 +40,14 @@ export class SecurityLogService {
       return '[' + v.map((x) => this.stableStringify(x)).join(',') + ']';
     }
     const obj = v as Record<string, unknown>;
-    return '{' + Object.keys(obj).sort()
-      .map((k) => JSON.stringify(k) + ':' + this.stableStringify(obj[k]))
-      .join(',') + '}';
+    return (
+      '{' +
+      Object.keys(obj)
+        .sort()
+        .map((k) => JSON.stringify(k) + ':' + this.stableStringify(obj[k]))
+        .join(',') +
+      '}'
+    );
   }
   private computeHash(e: Hashable) {
     const content = this.stableStringify({
@@ -53,12 +58,15 @@ export class SecurityLogService {
       context: e.context ?? null,
       prevHash: e.prevHash,
     });
-    return createHmac('sha256', this.auditKey()).update(content).digest('hex')
+    return createHmac('sha256', this.auditKey()).update(content).digest('hex');
   }
   async record(input: RecordInput): Promise<void> {
     const task = this.writeChain.then(async () => {
       try {
-        const [last] = await this.repo.find({ order: { createdAt: 'DESC' }, take: 1 });
+        const [last] = await this.repo.find({
+          order: { createdAt: 'DESC' },
+          take: 1,
+        });
         const prevHash = last?.hash ?? GENESIS;
 
         const fields: Hashable = {
@@ -66,8 +74,11 @@ export class SecurityLogService {
           userId: input.userId ?? null,
           ipAddress: input.ip ?? null,
           userAgent: input.userAgent ?? null,
-          context: input.context && Object.keys(input.context).length ? input.context : null,
-          prevHash
+          context:
+            input.context && Object.keys(input.context).length
+              ? input.context
+              : null,
+          prevHash,
         };
         const hash = this.computeHash(fields);
 
@@ -86,7 +97,7 @@ export class SecurityLogService {
         this.logger.error(`Ghi security log thất bại: ${String(err)}`);
       }
     });
-    this.writeChain = task.catch(() => { });
+    this.writeChain = task.catch(() => {});
     return task;
   }
   async verifyChain() {
@@ -96,7 +107,11 @@ export class SecurityLogService {
 
     for (const row of rows) {
       if (!row.hash) {
-        issues.push({ id: row.id, type: 'missing_hash', message: `#${row.id} thiếu hash` });
+        issues.push({
+          id: row.id,
+          type: 'missing_hash',
+          message: `#${row.id} thiếu hash`,
+        });
         continue;
       }
       const recomputed = this.computeHash({
@@ -108,13 +123,37 @@ export class SecurityLogService {
         prevHash: row.prevHash,
       });
       if (recomputed !== row.hash) {
-        issues.push({ id: row.id, type: 'content_modified', message: `#${row.id} bị sửa nội dung` });
+        issues.push({
+          id: row.id,
+          type: 'content_modified',
+          message: `#${row.id} bị sửa nội dung`,
+        });
       }
       if (row.prevHash !== expectedPrev) {
-        issues.push({ id: row.id, type: 'chain_broken', message: `#${row.id} liên kết chuỗi bị gãy` });
+        issues.push({
+          id: row.id,
+          type: 'chain_broken',
+          message: `#${row.id} liên kết chuỗi bị gãy`,
+        });
       }
       expectedPrev = row.hash;
     }
     return { ok: issues.length === 0, total: rows.length, issues };
+  }
+
+  // Thiết bị lạ: cặp (IP, user-agent) chưa từng login_success với user này,
+  // nhưng user ĐÃ từng login thành công (để không báo ngay ở lần đăng nhập đầu).
+  async isNewDevice(
+    userId: string,
+    ip: string | null,
+    userAgent: string | null,
+  ): Promise<boolean> {
+    const [sameDevice, anyLogin] = await Promise.all([
+      this.repo.findOne({
+        where: { userId, event: 'login_success', ipAddress: ip, userAgent },
+      }),
+      this.repo.findOne({ where: { userId, event: 'login_success' } }),
+    ]);
+    return !sameDevice && !!anyLogin;
   }
 }

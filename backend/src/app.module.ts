@@ -14,17 +14,17 @@ import { UrlrepModule } from './urlrep/urlrep.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true
+      isGlobal: true,
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        type: "postgres",
+        type: 'postgres',
         url: config.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: false,
-        ssl: { rejectUnauthorized: false },
-      })
+        ssl: { rejectUnauthorized: true },
+      }),
     }),
     ThrottlerModule.forRoot([
       { ttl: 60000, limit: 100 }, // mặc định: 100 request / 60 giây / IP
@@ -34,10 +34,9 @@ import { UrlrepModule } from './urlrep/urlrep.module';
     SecurityLogModule,
     AdminModule,
     RecipeModule,
-    UrlrepModule
+    UrlrepModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
-
 })
-export class AppModule { }
+export class AppModule {}

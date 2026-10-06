@@ -8,4 +8,4 @@ import { SecurityLogModule } from '../security-log/security-log.module';
   controllers: [UrlrepController],
   providers: [UrlrepService],
 })
-export class UrlrepModule { }
+export class UrlrepModule {}

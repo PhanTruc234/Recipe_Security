@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
@@ -16,6 +20,7 @@ export class AuthService {
     private readonly userRepo: Repository<User>,
     private readonly totp: TotpService,
     private readonly crypto: CryptoService,
+    // eslint-disable-next-line prettier/prettier
   ) { }
   private sessionResult(user: User) {
     return {
@@ -23,7 +28,6 @@ export class AuthService {
       role: user.role,
       verifier: user.verifier,
       kdfSalt: user.kdfSalt,
-      kdfIterations: user.kdfIterations,
     };
   }
   async register(dto: RegisterDto) {
@@ -39,7 +43,6 @@ export class AuthService {
       email,
       authHash: await bcrypt.hash(dto.authHash, 12),
       kdfSalt: dto.kdfSalt,
-      kdfIterations: dto.kdfIterations,
       verifier: dto.verifier,
       role: 'user',
     });
@@ -62,14 +65,14 @@ export class AuthService {
     const norm = email.toLowerCase();
     const user = await this.userRepo.findOne({ where: { email: norm } });
     if (user) {
-      return { kdfSalt: user.kdfSalt, kdfIterations: user.kdfIterations };
+      return { kdfSalt: user.kdfSalt };
     }
     const fake = createHmac('sha256', process.env.SESSION_SECRET ?? '')
       .update('kdf-salt:' + norm)
       .digest()
       .subarray(0, 16)
       .toString('base64');
-    return { kdfSalt: fake, kdfIterations: 600000 };
+    return { kdfSalt: fake };
   }
 
   findById(id: string) {
@@ -89,12 +92,21 @@ export class AuthService {
   async verifyTwoFactor(userId: string, code: string) {
     const user = await this.findById(userId);
     if (!user || !user.totpEnabled || !user.totpSecret) return null;
-    let ok = await this.totp.verify(code, this.crypto.decryptServer(user.totpSecret));
+    let ok = await this.totp.verify(
+      code,
+      this.crypto.decryptServer(user.totpSecret),
+    );
     if (!ok && user.backupCodes) {
-      const rest = this.totp.matchAndConsume(code, JSON.parse(user.backupCodes));
+      const rest = this.totp.matchAndConsume(
+        code,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+        JSON.parse(user.backupCodes),
+      );
       if (rest) {
         ok = true;
-        await this.userRepo.update(userId, { backupCodes: JSON.stringify(rest) });
+        await this.userRepo.update(userId, {
+          backupCodes: JSON.stringify(rest),
+        });
       }
     }
 
@@ -104,7 +116,6 @@ export class AuthService {
       role: user.role,
       verifier: user.verifier,
       kdfSalt: user.kdfSalt,
-      kdfIterations: user.kdfIterations,
     };
   }
   async disableTotp(userId: string): Promise<void> {

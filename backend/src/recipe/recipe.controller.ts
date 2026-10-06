@@ -1,5 +1,12 @@
 import {
-  Body, Controller, Get, Headers, Ip, Post, Session, UnauthorizedException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Ip,
+  Post,
+  Session,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { SessionData } from 'express-session';
@@ -8,7 +15,7 @@ import { SearchDto } from './dto/search.dto';
 
 @Controller('recipe')
 export class RecipeController {
-  constructor(private readonly recipeService: RecipeService) { }
+  constructor(private readonly recipeService: RecipeService) {}
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('search')
@@ -18,7 +25,10 @@ export class RecipeController {
     @Ip() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    const result = await this.recipeService.search(dto.query, { ip, userAgent });
+    const result = await this.recipeService.search(dto.query, {
+      ip,
+      userAgent,
+    });
     if ('unlocked' in result) {
       if (result.unlocked === 'real') {
         session.vaultGate = 'real';

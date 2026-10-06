@@ -7,11 +7,12 @@ import { AuthModule } from 'src/auth/auth.module';
 import { SecurityLogModule } from 'src/security-log/security-log.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Credential]),
+  imports: [
+    TypeOrmModule.forFeature([Credential]),
     AuthModule,
-    SecurityLogModule
+    SecurityLogModule,
   ],
   controllers: [CredentialController],
   providers: [CredentialService],
 })
-export class CredentialModule { }
+export class CredentialModule {}
