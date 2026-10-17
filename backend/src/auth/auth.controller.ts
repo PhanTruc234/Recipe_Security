@@ -4,6 +4,8 @@ import {
   Controller,
   Get,
   Headers,
+  NotFoundException,
+  Param,
   Post,
   Query,
   Req,
@@ -13,25 +15,29 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { ClientIp } from 'src/client-ip.decorator';
+import { ClientIp, ipDebugHeaders } from 'src/client-ip.decorator';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SessionData } from 'express-session';
 import { SessionAuthGuard } from './guards/session-auth.guard';
+import { StepUpGuard } from './guards/step-up.guard';
 import { SecurityLogService } from 'src/security-log/security-log.service';
 import { Throttle } from '@nestjs/throttler';
 import { TotpService } from './totp.service';
 import * as QRCode from 'qrcode';
 import { CodeDto } from './dto/code.dto';
+import { LabelDto } from './dto/label.dto';
+import { randomBytes } from 'crypto';
+import { DeviceService } from './device.service';
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly securityLog: SecurityLogService,
     private readonly totp: TotpService,
-    // eslint-disable-next-line prettier/prettier
-  ) { }
+    private readonly deviceService: DeviceService,
+  ) {}
 
   private regenerate(req: Request): Promise<void> {
     return new Promise((resolve, reject) =>
@@ -40,11 +46,25 @@ export class AuthController {
     );
   }
 
-  private establishSession(req: Request, userId: string, role: string) {
+  private establishSession(
+    req: Request,
+    userId: string,
+    role: string,
+    ip: string | null,
+    userAgent: string | null,
+  ) {
     req.session.userId = userId;
     req.session.role = role;
     req.session.vaultGate = 'real';
     req.session.vaultLastActivity = Math.floor(Date.now() / 1000);
+    const now = new Date().toISOString();
+    req.session.device = {
+      deviceId: randomBytes(16).toString('hex'),
+      ip,
+      userAgent,
+      createdAt: now,
+      lastSeen: now,
+    };
   }
 
   @Post('register')
@@ -57,7 +77,7 @@ export class AuthController {
   ) {
     const { id, ...bundle } = await this.authService.register(dto);
     await this.regenerate(req);
-    this.establishSession(req, id, bundle.role);
+    this.establishSession(req, id, bundle.role, ip ?? null, userAgent ?? null);
     await this.securityLog.record({
       event: 'account_created',
       userId: id,
@@ -100,7 +120,7 @@ export class AuthController {
       userAgent ?? null,
     );
     await this.regenerate(req);
-    this.establishSession(req, id, bundle.role);
+    this.establishSession(req, id, bundle.role, ip ?? null, userAgent ?? null);
     await this.securityLog.record({
       event: 'login_success',
       userId: id,
@@ -254,7 +274,13 @@ export class AuthController {
       userAgent ?? null,
     );
     await this.regenerate(req);
-    this.establishSession(req, pending.userId, pending.role);
+    this.establishSession(
+      req,
+      pending.userId,
+      pending.role,
+      ip ?? null,
+      userAgent ?? null,
+    );
     await this.securityLog.record({
       event: 'login_success',
       userId: pending.userId,
@@ -313,5 +339,65 @@ export class AuthController {
       userAgent,
     });
     return { ok: true };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Get('sessions')
+  listSessions(@Session() session: SessionData) {
+    return this.deviceService.listForUser(
+      session.userId,
+      session.device?.deviceId,
+    );
+  }
+
+  @UseGuards(StepUpGuard)
+  @Post('sessions/:deviceId/revoke')
+  async revokeSession(
+    @Param('deviceId') deviceId: string,
+    @Session() session: SessionData,
+    @ClientIp() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    if (deviceId === session.device?.deviceId) {
+      throw new BadRequestException(
+        'Đây là thiết bị hiện tại — dùng Đăng xuất',
+      );
+    }
+    const ok = await this.deviceService.revoke(session.userId, deviceId);
+    if (!ok) {
+      throw new NotFoundException('Không tìm thấy thiết bị');
+    }
+    await this.securityLog.record({
+      event: 'session_revoked',
+      userId: session.userId,
+      ip,
+      userAgent,
+      context: { deviceId },
+    });
+    return { ok: true };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Post('sessions/:deviceId/label')
+  async renameSession(
+    @Param('deviceId') deviceId: string,
+    @Body() dto: LabelDto,
+    @Session() session: SessionData,
+  ) {
+    const label = dto.label.trim();
+    const ok = await this.deviceService.rename(session.userId, deviceId, label);
+    if (!ok) {
+      throw new NotFoundException('Không tìm thấy thiết bị');
+    }
+    if (session.device?.deviceId === deviceId) {
+      session.device.label = label;
+    }
+    return { ok: true };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Get('ip-debug')
+  ipDebug(@Req() req: Request) {
+    return ipDebugHeaders(req);
   }
 }

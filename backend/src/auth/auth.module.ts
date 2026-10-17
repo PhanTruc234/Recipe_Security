@@ -6,11 +6,12 @@ import { User } from './entities/auth.entity';
 import { SecurityLogModule } from 'src/security-log/security-log.module';
 import { TotpService } from './totp.service';
 import { CryptoService } from './crypto.service';
+import { DeviceService } from './device.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User]), SecurityLogModule],
   controllers: [AuthController],
-  providers: [AuthService, TotpService, CryptoService],
+  providers: [AuthService, TotpService, CryptoService, DeviceService],
   exports: [AuthService],
 })
 export class AuthModule {}

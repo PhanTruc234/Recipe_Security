@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tổng hợp Bảo mật & Kiểm thử — Recipe Security</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 18px 80px;
+    background: #f7f6f2; color: #1f2937;
+    font-family: "Segoe UI", Arial, sans-serif; line-height: 1.55;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; color: #b45309; }
+  h2 { font-size: 1.25rem; margin: 40px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #f0c98a; color: #92400e; }
+  h3 { font-size: 1.02rem; margin: 24px 0 6px; color: #7c2d12; background:#fdeccf; display:inline-block; padding:3px 12px; border-radius:6px; }
+  p.sub { color: #6b7280; margin: 0 0 18px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 18px; font-size: 0.88rem; background: #fff; }
+  th, td { border: 1px solid #e5e1d8; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #fcefd9; color: #78350f; font-weight: 600; }
+  td.n { text-align:center; font-weight:600; color:#b45309; width:34px; }
+  tr:nth-child(even) td { background: #faf9f6; }
+  code { background: #eef2f7; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+  pre { background: #1f2430; color: #e6edf3; padding: 12px 14px; border-radius: 8px; overflow-x: auto; font-size: 0.82rem; }
+  .toc { background: #fff; border: 1px solid #e5e1d8; border-radius: 8px; padding: 14px 20px; margin: 18px 0; }
+  .toc a { color: #b45309; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .ok { color: #15803d; font-weight: 600; }
+  .grp { background: #fff7ed; }
+  .qa { background: #fff; border: 1px solid #e5e1d8; border-radius: 8px; padding: 2px 16px; margin: 10px 0; }
+  .qa b { color: #92400e; }
+  footer { margin-top: 40px; color: #9ca3af; font-size: 0.8rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Tổng hợp Bảo mật &amp; Kiểm thử — Recipe Security (Bếp Nhà)</h1>
+<p class="sub">Trình quản lý mật khẩu zero-knowledge ngụy trang app công thức nấu ăn · NestJS + Next.js · Tài liệu ôn để bảo vệ đồ án</p>
+
+<div class="toc">
+  <b>Mục lục</b>
+  <ol>
+    <li><a href="#p1">Toàn bộ phương pháp bảo mật — theo hành trình người dùng (55 phương pháp)</a></li>
+    <li><a href="#p2">3 nhóm kiểm thử: tool là gì, làm gì, tác dụng</a></li>
+    <li><a href="#p3">Bảng tổng hợp lệnh chạy</a></li>
+    <li><a href="#p4">Kết quả đã đạt được</a></li>
+    <li><a href="#p5">Hỏi — Đáp (thủ sẵn khi thầy hỏi)</a></li>
+  </ol>
+</div>
+
+<!-- ============ PHẦN 1 ============ -->
+<h2 id="p1">1. Toàn bộ phương pháp bảo mật, theo thứ tự từ đầu đến cuối</h2>
+<p class="sub">Mỗi phương pháp ghi 3 ý: <b>là gì</b>, <b>dùng để làm gì / chống được gì</b>, <b>nằm ở đâu trong code</b>. Thứ tự đi theo hành trình người dùng: mở web → mở cổng → đăng ký/đăng nhập → dùng kho → khóa/đăng xuất → admin giám sát.</p>
+
+<h3>Giai đoạn 0 — Lớp nền, áp dụng cho MỌI request</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">1</td><td><b>Helmet</b></td><td>Thư viện tự gắn các HTTP header bảo mật</td><td>Bắt trình duyệt bật chế độ an toàn: chống MIME sniffing, chống nhúng iframe, ép HTTPS (HSTS)</td><td>main.ts</td></tr>
+<tr><td class="n">2</td><td><b>CSP có nonce</b></td><td>Danh sách nguồn được phép chạy script/kết nối; mỗi request một nonce ngẫu nhiên</td><td>Chống XSS: script lạ không mang đúng nonce nên không chạy; connect-src chỉ cho gửi về site mình + HIBP</td><td>middleware.ts</td></tr>
+<tr><td class="n">3</td><td><b>frame-ancestors 'none'</b></td><td>Không cho trang khác nhúng site vào iframe</td><td>Chống clickjacking (lừa bấm nút ẩn)</td><td>middleware.ts</td></tr>
+<tr><td class="n">4</td><td><b>Session-cookie lưu ở server</b></td><td>Server giữ phiên trong Postgres, trình duyệt chỉ giữ ID ngẫu nhiên <code>recipe.sid</code></td><td>Thu hồi phiên ngay khi logout (khác JWT); cookie không chứa dữ liệu giải ra được</td><td>main.ts</td></tr>
+<tr><td class="n">5</td><td><b>Cookie httpOnly</b></td><td>JavaScript không đọc được cookie</td><td>Bị XSS cũng không lấy cắp được session</td><td>main.ts</td></tr>
+<tr><td class="n">6</td><td><b>Cookie sameSite:lax + secure</b></td><td>Không gửi cookie kèm POST từ site khác; production chỉ qua HTTPS</td><td>Giảm CSRF, chống nghe lén cookie</td><td>main.ts</td></tr>
+<tr><td class="n">7</td><td><b>CSRF token (Double Submit)</b></td><td>Server đặt token ngẫu nhiên vào cookie; mọi POST/PUT/DELETE phải gửi lại token trong header <code>x-xsrf-token</code></td><td>Chống CSRF: site độc không đọc được cookie → gửi sai header → bị từ chối 403</td><td>csrf.middleware.ts, api.ts</td></tr>
+<tr><td class="n">8</td><td><b>So sánh thời gian hằng</b></td><td><code>timingSafeEqual</code>: so 2 chuỗi trong cùng khoảng thời gian bất kể sai ở đâu</td><td>Chống timing attack (đoán token/mã dần qua thời gian phản hồi)</td><td>CSRF, cổng recipe</td></tr>
+<tr><td class="n">9</td><td><b>ValidationPipe whitelist + DTO</b></td><td>Kiểm kiểu &amp; độ dài input; trường lạ thì từ chối</td><td>Chống mass assignment (tự gửi <code>role:'admin'</code>), dữ liệu bẩn/quá dài</td><td>main.ts, dto/</td></tr>
+<tr><td class="n">10</td><td><b>Rate limit (Throttler)</b></td><td>Giới hạn request/IP: chung 100/phút, login 5, 2FA 10, tìm món 10</td><td>Chống brute-force mật khẩu/2FA/mã cổng; giảm spam</td><td>app.module.ts</td></tr>
+<tr><td class="n">11</td><td><b>CORS giới hạn origin + rewrite cùng origin</b></td><td>Chỉ origin client gọi API; Next chuyển <code>/api/*</code> sang backend</td><td>Trang lạ không gọi API kèm cookie; FE/BE cùng origin để cookie + CSRF hoạt động chặt</td><td>main.ts, next.config.ts</td></tr>
+<tr><td class="n">12</td><td><b>Chặn route ở middleware</b></td><td><code>/vault</code>,<code>/admin</code> phải có session; <code>/admin</code> phải là admin</td><td>Chưa đăng nhập không vào được kho hay trang quản trị</td><td>middleware.ts</td></tr>
+</table>
+
+<h3>Giai đoạn 1 — Mở cổng (trang nấu ăn)</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">13</td><td><b>Ngụy trang giao diện</b></td><td>Web trông như trang công thức; trang đăng nhập bị giấu</td><td>Kẻ dò quét không biết đây là kho mật khẩu</td><td>app/page.tsx, RecipeSearch.tsx</td></tr>
+<tr><td class="n">14</td><td><b>Mã cổng băm bcrypt</b></td><td>Mã bí mật chỉ lưu dạng hash <code>VAULT_REAL_CODE_HASH</code></td><td>Lộ file .env cũng không biết mã cổng thật</td><td>recipe.service.ts</td></tr>
+<tr><td class="n">15</td><td><b>Công thức giả tất định (FNV-1a)</b></td><td>Gõ tên món bất kỳ ra công thức hợp lý; cùng tên luôn ra cùng kết quả</td><td>Trông như web thật, thử nhiều lần cũng không lộ dấu hiệu bất thường</td><td>fake-recipe.ts</td></tr>
+<tr><td class="n">16</td><td><b>Kho mồi (decoy / duress)</b></td><td>Mã phụ mở ra kho giả có vài ghi chú vô hại</td><td>Bị ép mở kho thì đưa mã phụ, kẻ ép tưởng là kho thật</td><td>RecipeService.search, fake/page.tsx</td></tr>
+<tr><td class="n">17</td><td><b>Cờ cổng trong session (vaultGate)</b></td><td>Mở đúng cổng → server ghi <code>vaultGate='real'</code></td><td>API kho (qua VaultGuard) chỉ hoạt động khi cổng thật đã mở</td><td>recipe.controller.ts, vault.guard.ts</td></tr>
+</table>
+
+<h3>Giai đoạn 2 — Đăng ký (nền tảng Zero-Knowledge)</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">18</td><td><b>Zero-Knowledge</b></td><td>Mọi việc mã hóa làm ở trình duyệt; server không bao giờ nhận mật khẩu hay khóa</td><td>Lộ DB hay admin tò mò cũng không đọc được kho</td><td>libs/crypto/</td></tr>
+<tr><td class="n">19</td><td><b>Salt ngẫu nhiên 16 byte</b></td><td>Mỗi user một salt riêng (<code>generateKdfSalt</code>)</td><td>Hai người trùng mật khẩu vẫn ra 2 khóa khác; chống rainbow table</td><td>kdf.ts</td></tr>
+<tr><td class="n">20</td><td><b>Argon2id</b></td><td>Hàm băm mật khẩu tốn RAM (19 MiB) và cố tình chạy chậm</td><td>Mỗi lần đoán mật khẩu rất tốn kém → brute-force bằng GPU/ASIC khó khăn</td><td>deriveMasterKey</td></tr>
+<tr><td class="n">21</td><td><b>HKDF tách khóa</b></td><td>Từ masterKey sinh 2 khóa độc lập: authHash và encryptionKey</td><td>Server có authHash cũng không suy ra được khóa mã hóa</td><td>hkdf, deriveAuthHash, deriveEncryptionKey</td></tr>
+<tr><td class="n">22</td><td><b>Verifier</b></td><td>Mã hóa một câu cố định bằng encryptionKey, lưu lên server</td><td>Client tự kiểm mật khẩu đúng/sai mà server không cần biết; không dùng nhầm khóa sai làm hỏng kho</td><td>vault.ts</td></tr>
+<tr><td class="n">23</td><td><b>bcrypt cho authHash (cost 12)</b></td><td>Server băm thêm một lớp nữa trước khi lưu</td><td>Lộ DB cũng không dùng hash để đăng nhập (chống pass-the-hash)</td><td>AuthService.register</td></tr>
+</table>
+
+<h3>Giai đoạn 3 — Đăng nhập</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">24</td><td><b>Salt giả bằng HMAC cho email lạ</b></td><td>Email không tồn tại vẫn trả một salt "giả nhưng cố định"</td><td>Chống dò email (user enumeration): không phân biệt được email có tồn tại hay không</td><td>AuthService.getKdfParams</td></tr>
+<tr><td class="n">25</td><td><b>Thông báo lỗi chung</b></td><td>Sai email hay sai mật khẩu đều trả "Email hoặc mật khẩu không đúng"</td><td>Chống dò tài khoản</td><td>AuthService.login</td></tr>
+<tr><td class="n">26</td><td><b>Session regenerate</b></td><td>Đăng nhập thành công thì đổi sang session ID mới</td><td>Chống session fixation (kẻ tấn công cài sẵn session ID cho nạn nhân)</td><td>auth.controller.ts</td></tr>
+<tr><td class="n">27</td><td><b>Kiểm verifier sau đăng nhập</b></td><td>Server báo OK rồi client vẫn tự kiểm lại khóa</td><td>Không nhận khóa sai; phát hiện server trả dữ liệu bất thường</td><td>useLogin / use-auth.ts</td></tr>
+<tr><td class="n">28</td><td><b>Phát hiện thiết bị lạ</b></td><td>Cặp (IP, User-Agent) chưa từng đăng nhập thành công thì ghi log và hiện cảnh báo</td><td>Người dùng biết ngay khi tài khoản bị đăng nhập lạ</td><td>isNewDevice, NewDeviceBanner.tsx</td></tr>
+</table>
+
+<h3>Giai đoạn 4 — Xác thực 2 lớp (2FA)</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">29</td><td><b>TOTP (RFC 6238)</b></td><td>Mã 6 số đổi mỗi 30 giây từ app Authenticator, cài bằng quét QR</td><td>Lộ mật khẩu vẫn không vào được nếu không có điện thoại</td><td>totp.service.ts</td></tr>
+<tr><td class="n">30</td><td><b>Mã hóa TOTP secret (AES-256-GCM)</b></td><td>Secret 2FA mã hóa bằng khóa riêng <code>TOTP_ENC_KEY</code> trước khi lưu DB</td><td>Lộ DB thì kẻ tấn công cũng không tự sinh được mã 2FA</td><td>crypto.service.ts</td></tr>
+<tr><td class="n">31</td><td><b>Mã dự phòng băm bcrypt, 1 lần/mã</b></td><td>8 mã dự phòng phòng khi mất điện thoại</td><td>Mất điện thoại vẫn vào được; mã đã dùng bị xóa, không tái sử dụng</td><td>generateBackupCodes, matchAndConsume</td></tr>
+<tr><td class="n">32</td><td><b>Phiên chờ 2FA hết hạn 5 phút</b></td><td><code>pending2fa</code> có mốc thời gian</td><td>Không để phiên "nửa đăng nhập" tồn tại mãi</td><td>verify2fa</td></tr>
+</table>
+
+<h3>Giai đoạn 5 — Sử dụng kho mật khẩu</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">33</td><td><b>AES-256-GCM phía client (AEAD)</b></td><td>Mã hóa có xác thực</td><td>Bí mật: không khóa không đọc được. Toàn vẹn: sửa 1 bit là bị phát hiện</td><td>seal/open — aead.ts</td></tr>
+<tr><td class="n">34</td><td><b>IV ngẫu nhiên mỗi lần mã hóa</b></td><td>Nonce 12 byte mới mỗi lần</td><td>Cùng nội dung ra 2 bản mã khác; tránh lỗi dùng lại IV làm lộ dữ liệu</td><td>seal</td></tr>
+<tr><td class="n">35</td><td><b>Mã hóa nguyên cả mục</b></td><td>Cả tên dịch vụ, URL, tài khoản, mật khẩu, ghi chú đều được mã hóa</td><td>Server không biết người dùng dùng dịch vụ gì</td><td>encryptCredential</td></tr>
+<tr><td class="n">36</td><td><b>Khóa chỉ giữ trong RAM</b></td><td>encryptionKey nằm trong Zustand, không localStorage/cookie</td><td>Đóng tab hoặc F5 là mất khóa; không có khóa nằm trên ổ đĩa cho kẻ khác lấy</td><td>key.store.ts</td></tr>
+<tr><td class="n">37</td><td><b>Kiểm sở hữu (findOwned) + ParseUUIDPipe</b></td><td>Mục phải thuộc user đang đăng nhập</td><td>Chống IDOR (đổi id trên URL để sửa/xóa mục của người khác)</td><td>credential.service.ts</td></tr>
+<tr><td class="n">38</td><td><b>Ẩn mật khẩu mặc định</b></td><td>Hiện ••••••••, bấm "Hiện" mới thấy</td><td>Chống nhìn trộm qua vai</td><td>VaultClient.tsx</td></tr>
+<tr><td class="n">39</td><td><b>Clipboard tự xóa sau 15 giây</b></td><td>Chép mật khẩu xong thì tự xóa clipboard</td><td>Mật khẩu không nằm lại trong clipboard cho app khác đọc</td><td>clipboard.ts</td></tr>
+</table>
+
+<h3>Giai đoạn 6 — Công cụ nâng cao an toàn mật khẩu</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">40</td><td><b>CSPRNG + rejection sampling</b></td><td>Sinh mật khẩu bằng <code>crypto.getRandomValues</code>, loại bỏ giá trị gây lệch xác suất</td><td>Mật khẩu thật sự ngẫu nhiên, mọi ký tự xác suất như nhau</td><td>randomBelow, generatePassword</td></tr>
+<tr><td class="n">41</td><td><b>Đo entropy + từ điển</b></td><td>Tính số bit entropy, phát hiện từ phổ biến, dãy liên tiếp, ký tự lặp</td><td>Cảnh báo người dùng khi đặt mật khẩu yếu</td><td>assessStrength, crackTime</td></tr>
+<tr><td class="n">42</td><td><b>Phát hiện mật khẩu dùng lại</b></td><td>So SHA-256 rút gọn của các mật khẩu, làm ngay trên client</td><td>Cảnh báo dùng một mật khẩu cho nhiều nơi</td><td>fingerprint — decrypt.ts</td></tr>
+<tr><td class="n">43</td><td><b>Breach check k-Anonymity (HIBP)</b></td><td>Chỉ gửi 5 ký tự đầu của hash SHA-1 lên HIBP, so phần còn lại trên máy</td><td>Biết mật khẩu đã lộ chưa mà HIBP không biết mình kiểm cái nào</td><td>breachCheck.ts</td></tr>
+<tr><td class="n">44</td><td><b>Phát hiện URL lừa đảo (heuristic)</b></td><td>Chấm điểm: typosquatting (Levenshtein), homograph, IP, dấu @, đuôi miền rủi ro, URL rút gọn…</td><td>Cảnh báo phishing trước khi lưu/dùng URL giả</td><td>url-safety.ts</td></tr>
+<tr><td class="n">45</td><td><b>Tra danh tiếng URL ở server</b></td><td>Server gọi Google Safe Browsing + VirusTotal, API key giữ ở server</td><td>Phát hiện URL độc đã có trong CSDL toàn cầu; không lộ API key ra trình duyệt</td><td>urlrep.service.ts</td></tr>
+</table>
+
+<h3>Giai đoạn 7 — Thao tác nguy hiểm, khóa kho và đăng xuất</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">46</td><td><b>Step-up authentication</b></td><td>Xóa mục phải nhập lại mã 2FA</td><td>Kẻ chiếm được phiên (máy để mở) vẫn không xóa được dữ liệu</td><td>step-up.guard.ts</td></tr>
+<tr><td class="n">47</td><td><b>Auto-lock phía client</b></td><td>Không hoạt động 300 giây thì tự khóa</td><td>Bỏ máy đi mà quên khóa thì kho vẫn tự khóa</td><td>use-auto-lock.ts</td></tr>
+<tr><td class="n">48</td><td><b>Auto-lock phía server (mã 440)</b></td><td>VaultGuard kiểm thời điểm hoạt động cuối</td><td>Client bị sửa, server vẫn tự khóa; 2 lớp độc lập</td><td>vault.guard.ts, api.ts</td></tr>
+<tr><td class="n">49</td><td><b>Ghi đè khóa bằng 0 (fill(0))</b></td><td>Xóa sạch byte khóa trước khi bỏ</td><td>Giảm khả năng khóa còn sót trong bộ nhớ</td><td>lock — key.store.ts</td></tr>
+<tr><td class="n">50</td><td><b>Hủy session khi logout</b></td><td><code>session.destroy()</code> + xóa cookie + khóa kho</td><td>Phiên cũ mất hiệu lực ngay, không dùng lại được</td><td>logout</td></tr>
+</table>
+
+<h3>Giai đoạn 8 — Giám sát và quản trị</h3>
+<table>
+<tr><th class="n">#</th><th>Phương pháp</th><th>Là gì</th><th>Tác dụng / chống gì</th><th>Ở đâu</th></tr>
+<tr><td class="n">51</td><td><b>Security log (audit log)</b></td><td>Ghi mọi sự kiện quan trọng: đăng nhập sai/đúng, thêm/sửa/xóa, mở cổng, 2FA…</td><td>Truy vết khi có sự cố, phát hiện tấn công</td><td>security-log.service.ts</td></tr>
+<tr><td class="n">52</td><td><b>Hash chain HMAC-SHA256</b></td><td>Mỗi log có hash của chính nó cộng hash log trước, ký bằng khóa bí mật</td><td>Sửa/xóa/chèn log đều bị phát hiện; kẻ sửa không tự tính lại được hash</td><td>record, computeHash, verifyChain</td></tr>
+<tr><td class="n">53</td><td><b>Ghi log tuần tự (writeChain)</b></td><td>Hàng đợi Promise, ghi lần lượt từng bản ghi</td><td>Hai request đồng thời không làm gãy chuỗi hash</td><td>record</td></tr>
+<tr><td class="n">54</td><td><b>Phân quyền RBAC</b></td><td>AdminGuard kiểm tra <code>role === 'admin'</code></td><td>User thường không vào được chức năng quản trị (chống leo thang đặc quyền)</td><td>admin.guard.ts</td></tr>
+<tr><td class="n">55</td><td><b>Chứng minh Zero-Knowledge</b></td><td>Admin xem được bản mã trong DB</td><td>Cho thấy chính admin cũng chỉ thấy chuỗi vô nghĩa</td><td>ciphertextSamples — admin.service.ts</td></tr>
+</table>
+
+<!-- ============ PHẦN 2 ============ -->
+<h2 id="p2">2. Ba nhóm kiểm thử: tool là gì, làm gì, tác dụng</h2>
+<p class="sub">Ba "trụ" phủ 3 mặt: soi mã nguồn · soi thư viện · đánh app đang chạy.</p>
+
+<h3>Nhóm 1 — SAST (Static Application Security Testing)</h3>
+<table>
+<tr><th>Mục</th><th>Nội dung</th></tr>
+<tr><td>Là gì</td><td><b>Soi mã nguồn tĩnh</b> — đọc code mà <u>không chạy app</u>, so với hàng nghìn mẫu lỗi.</td></tr>
+<tr><td>Tool</td><td><b>Semgrep</b> (chạy qua Docker vì Windows)</td></tr>
+<tr><td>Làm gì</td><td>Tìm pattern nguy hiểm: secret hardcode, input chưa lọc, dùng <code>eval</code>, crypto sai, thiếu kiểm quyền…</td></tr>
+<tr><td>Tác dụng</td><td>Bắt lỗi <b>ngay trong code của mình</b> trước khi chạy — hợp nhất vì có full source TypeScript.</td></tr>
+<tr><td>Phát hiện</td><td>1 lỗi: GCM thiếu ép độ dài auth tag (<code>crypto.service.ts</code>) → <span class="ok">đã vá</span>.</td></tr>
+</table>
+
+<h3>Nhóm 2 — SCA (Software Composition Analysis)</h3>
+<table>
+<tr><th>Mục</th><th>Nội dung</th></tr>
+<tr><td>Là gì</td><td><b>Soi thư viện</b> — đối chiếu dependency với CSDL lỗ hổng công khai (CVE).</td></tr>
+<tr><td>Tool</td><td><b>pnpm audit</b> (có sẵn, không cần cài)</td></tr>
+<tr><td>Làm gì</td><td>Đọc lockfile → báo thư viện nào dính CVE, bản nào đã vá.</td></tr>
+<tr><td>Tác dụng</td><td>Bắt lỗ hổng <b>không phải do mình</b> mà do thư viện (rủi ro chuỗi cung ứng).</td></tr>
+<tr><td>Phát hiện</td><td><code>next@16.3.4</code> dính CVE (cache poisoning) → nâng lên <code>16.3.8</code>.</td></tr>
+</table>
+
+<h3>Nhóm 3 — DAST (Dynamic Application Security Testing)</h3>
+<table>
+<tr><th>Mục</th><th>Nội dung</th></tr>
+<tr><td>Là gì</td><td><b>Đánh app đang chạy</b> (hộp đen) — gửi request thật, xem app phản ứng.</td></tr>
+<tr><td>Tool 1 — <b>OWASP ZAP</b></td><td><b>Tự động</b>: bò khắp app + quét thụ động (header, cookie, CSP, XSS, lib lỗi). Nhanh, phủ rộng.</td></tr>
+<tr><td>Tool 2 — <b>Burp Suite Community</b></td><td><b>Thủ công</b>: proxy chặn giữa trình duyệt và server, sửa &amp; gửi lại request tùy ý (Repeater).</td></tr>
+<tr><td>Tác dụng</td><td>ZAP bắt lỗi cấu hình phổ biến; <b>Burp kiểm LOGIC</b> máy không hiểu: IDOR, CSRF, step-up, phân quyền — mô phỏng đúng hacker.</td></tr>
+<tr><td>Phát hiện</td><td>ZAP: <span class="ok">0 FAIL</span>, 57 PASS, 10 WARN (chủ yếu dev). Burp: CSRF <span class="ok">403 ✅</span>, IDOR <span class="ok">400+403 ✅</span>.</td></tr>
+</table>
+
+<!-- ============ PHẦN 3 ============ -->
+<h2 id="p3">3. Bảng tổng hợp lệnh chạy</h2>
+<table>
+<tr><th>Nhóm</th><th>Tool</th><th>Lệnh</th><th>Mục đích</th></tr>
+<tr class="grp"><td>SAST</td><td>Semgrep</td><td><code>MSYS_NO_PATHCONV=1 docker run --rm -v "E:/Recipe_Security:/src" -w /src semgrep/semgrep semgrep scan --config auto --exclude node_modules --exclude .next --exclude dist</code></td><td>Quét toàn bộ mã nguồn tìm lỗ hổng</td></tr>
+<tr><td>SCA</td><td>pnpm audit</td><td><code>cd backend &amp;&amp; pnpm audit --prod</code><br><code>cd frontend &amp;&amp; pnpm audit --prod</code></td><td>Liệt kê thư viện dính CVE (bản production)</td></tr>
+<tr><td>SCA</td><td>pnpm</td><td><code>cd frontend &amp;&amp; pnpm add next@^16.3.8</code></td><td>Nâng cấp vá lỗ hổng</td></tr>
+<tr class="grp"><td>DAST</td><td>Chạy app</td><td><code>cd backend &amp;&amp; pnpm start:dev</code> · <code>cd frontend &amp;&amp; pnpm dev</code></td><td>Khởi động mục tiêu (BE :3000, FE :3001)</td></tr>
+<tr><td>DAST</td><td>OWASP ZAP</td><td><code>MSYS_NO_PATHCONV=1 docker run --rm -t -v "E:/Recipe_Security:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:3001 -r zap-report.html</code></td><td>Quét tự động, xuất báo cáo HTML</td></tr>
+<tr><td>DAST</td><td>Burp</td><td>(GUI) Proxy → Open Browser → thao tác → Send to Repeater → sửa &amp; Send</td><td>Test thủ công IDOR/CSRF/step-up</td></tr>
+<tr><td>Verify</td><td>tsc / eslint</td><td><code>pnpm exec tsc --noEmit -p tsconfig.build.json</code> · <code>pnpm exec eslint src/...</code></td><td>Kiểm biên dịch &amp; chất lượng sau khi vá</td></tr>
+</table>
+
+<!-- ============ PHẦN 4 ============ -->
+<h2 id="p4">4. Kết quả đã đạt được</h2>
+<table>
+<tr><th>Nhóm</th><th>Phạm vi</th><th>Kết quả</th><th>Xử lý</th></tr>
+<tr><td><b>SAST</b> (Semgrep)</td><td>129 file, 250 rule</td><td>1 finding (GCM tag length)</td><td><span class="ok">Đã vá</span> → quét lại 0 finding</td></tr>
+<tr><td><b>SCA</b> (pnpm audit)</td><td>BE + FE dependencies</td><td><code>next</code> dính CVE</td><td>Nâng <code>next</code> ≥16.3.8; CVE transitive ghi nhận "rủi ro chấp nhận được"</td></tr>
+<tr><td><b>DAST</b> — ZAP</td><td>31 URL, 57+ rule thụ động</td><td><span class="ok">0 FAIL</span>, 57 PASS, 10 WARN (dev)</td><td>Thêm X-Content-Type-Options, Permissions-Policy, tắt X-Powered-By</td></tr>
+<tr><td><b>DAST</b> — Burp</td><td>Test logic thủ công</td><td>CSRF <span class="ok">403</span> · IDOR <span class="ok">400 + 403</span> · rate-limit header hiển thị</td><td>Các cơ chế bảo mật tự viết hoạt động đúng</td></tr>
+</table>
+<p class="sub">Ánh xạ OWASP Top 10: A01 Broken Access Control (IDOR ✅), A02 Cryptographic Failures (GCM tag ✅), A05 Security Misconfiguration (header ✅), A06 Vulnerable Components (SCA ✅), A07 Identification &amp; Auth (2FA, session ✅).</p>
+
+<!-- ============ PHẦN 5 ============ -->
+<h2 id="p5">5. Hỏi — Đáp (thủ sẵn khi thầy hỏi)</h2>
+
+<div class="qa"><p><b>Hỏi: Em test bảo mật bằng những phương pháp/công cụ gì?</b><br>
+Đáp: 3 nhóm — <b>SAST</b> (Semgrep) soi mã nguồn, <b>SCA</b> (pnpm audit) soi thư viện, <b>DAST</b> (OWASP ZAP tự động + Burp Suite thủ công) đánh app đang chạy. Ba nhóm phủ cả code, dependency và runtime.</p></div>
+
+<div class="qa"><p><b>Hỏi: SAST, DAST khác nhau chỗ nào?</b><br>
+Đáp: SAST đọc <u>code tĩnh, không chạy app</u> (hộp trắng); DAST <u>tấn công app đang chạy</u> (hộp đen). SAST bắt lỗi trong code mình viết, DAST bắt lỗi khi hệ thống vận hành thật.</p></div>
+
+<div class="qa"><p><b>Hỏi: Burp Suite là gì, tại sao cần?</b><br>
+Đáp: Là <b>intercepting proxy</b> ngồi giữa trình duyệt và server, cho em xem và <b>sửa request</b> trước khi gửi. Nhờ đó làm được điều giao diện không cho (gỡ CSRF token, tráo id) để test logic ở <b>tầng server</b> — nơi bảo mật thật sự nằm. ZAP tự động không hiểu được logic này.</p></div>
+
+<div class="qa"><p><b>Hỏi: Zero-knowledge nghĩa là gì?</b><br>
+Đáp: Mật khẩu được biến thành khóa <b>ngay trong trình duyệt</b>; server chỉ nhận bản băm để đăng nhập và ciphertext, <b>không bao giờ thấy mật khẩu hay khóa giải mã</b>. Vì vậy lộ DB cũng không đọc được dữ liệu.</p></div>
+
+<div class="qa"><p><b>Hỏi: Test tìm ra lỗi gì và xử lý ra sao?</b><br>
+Đáp: SAST tìm 1 lỗi crypto (AES-GCM thiếu ép độ dài auth tag) → vá bằng <code>authTagLength:16</code> + kiểm độ dài tag. SCA tìm CVE của Next.js → nâng cấp. DAST xác nhận CSRF, IDOR, header đều hoạt động (0 lỗi nghiêm trọng).</p></div>
+
+<div class="qa"><p><b>Hỏi: Chống IDOR thế nào?</b><br>
+Đáp: Mọi thao tác credential đều lọc theo <code>userId</code> của phiên; id sai định dạng bị <code>ParseUUIDPipe</code> chặn (400), id của người khác bị chặn (403 "không thuộc về bạn"). Đã chứng minh bằng Burp.</p></div>
+
+<div class="qa"><p><b>Hỏi: Vì sao log IP ra <code>::1</code>?</b><br>
+Đáp: Vì test ở local nên IP thật chính là localhost. Khi deploy sau proxy/CDN, đọc IP qua <code>trust proxy</code>/<code>cf-connecting-ip</code> sẽ ra IP client thật và không giả mạo được.</p></div>
+
+<div class="qa"><p><b>Hỏi: Penetration testing là gì, có làm không?</b><br>
+Đáp: Pentest là <b>quy trình</b> mô phỏng tấn công (quét → khai thác → báo cáo), không phải 1 công cụ. Em <b>đã làm</b> một đợt pentest quy mô nhỏ, dùng chính 3 nhóm tool trên, ánh xạ kết quả theo OWASP Top 10.</p></div>
+
+<footer>Recipe Security — tài liệu ôn tập nội bộ. Cập nhật theo quá trình kiểm thử.</footer>
+
+</div>
+</body>
+</html>

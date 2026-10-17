@@ -9,6 +9,18 @@ declare module 'express-session' {
     vaultLastActivity?: number;
     pendingTotpSecret?: string;
     pending2fa?: { userId: string; role: string; ts: number };
-    newDeviceAlert?: { at: string; ip: string | null; userAgent: string | null };
+    newDeviceAlert?: {
+      at: string;
+      ip: string | null;
+      userAgent: string | null;
+    };
+    device?: {
+      deviceId: string;
+      ip: string | null;
+      userAgent: string | null;
+      createdAt: string;
+      lastSeen: string;
+      label?: string;
+    };
   }
 }

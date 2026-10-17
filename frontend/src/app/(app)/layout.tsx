@@ -16,6 +16,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                     <Link href="/vault" className="rounded-lg px-3 py-1.5 text-stone-600 hover:bg-amber-100">
                         Kho mật khẩu
                     </Link>
+                    <Link href="/vault/devices" className="rounded-lg px-3 py-1.5 text-stone-600 hover:bg-amber-100">
+                        Thiết bị
+                    </Link>
                     {isAdmin && (
                         <Link href="/admin" className="rounded-lg px-3 py-1.5 text-stone-600 hover:bg-amber-100">
                             Quản trị

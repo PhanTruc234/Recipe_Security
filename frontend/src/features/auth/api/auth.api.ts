@@ -5,6 +5,7 @@ import type {
     Setup2faResponse,
     Enable2faResponse,
     OkResponse,
+    DeviceSession,
 } from '@/types';
 
 export const authApi = {
@@ -24,4 +25,17 @@ export const authApi = {
     twofaEnable: (code: string) => apiRequest<Enable2faResponse>({ url: '/auth/2fa/enable', method: 'POST', data: { code } }),
     twofaDisable: (code: string) => apiRequest<OkResponse>({ url: '/auth/2fa/disable', method: 'POST', data: { code } }),
     dismissAlert: () => apiRequest({ url: '/auth/alert/dismiss', method: 'POST' }),
+    sessions: () => apiFetch<DeviceSession[]>({ url: '/auth/sessions' }),
+    revokeSession: (deviceId: string, code?: string) =>
+        apiRequest<OkResponse>({
+            url: `/auth/sessions/${deviceId}/revoke`,
+            method: 'POST',
+            headers: code ? { 'x-2fa-code': code } : undefined,
+        }),
+    renameSession: (deviceId: string, label: string) =>
+        apiRequest<OkResponse>({
+            url: `/auth/sessions/${deviceId}/label`,
+            method: 'POST',
+            data: { label },
+        }),
 };

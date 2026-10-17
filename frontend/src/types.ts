@@ -34,6 +34,16 @@ export interface NewDeviceAlert {
     userAgent: string | null;
 }
 
+export interface DeviceSession {
+    deviceId: string;
+    label: string | null;
+    ip: string | null;
+    userAgent: string | null;
+    createdAt: string;
+    lastSeen: string;
+    current: boolean;
+}
+
 export interface KdfParams {
     kdfSalt: string;
 }
