@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { RecipeSearch } from "@/features/recipe/components/RecipeSearch";
 
 const CATEGORIES: Record<string, { name: string; desc: string; time: number; level: string }[]> = {
@@ -19,41 +20,38 @@ const CATEGORIES: Record<string, { name: string; desc: string; time: number; lev
   ],
 };
 
-export default function CoverPage() {
+export default async function CoverPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cat?: string }>;
+}) {
+  const { cat } = await searchParams;
+  const activeCat = cat && cat in CATEGORIES ? cat : null;
+
+  const tabClass = (active: boolean) =>
+    `rounded-lg px-3 py-1.5 transition ${active ? 'bg-amber-600 text-white' : 'text-stone-500 hover:bg-amber-100'}`;
+
   return (
-    <div className="min-h-full bg-amber-50 text-stone-800">
+    <div className="min-h-screen bg-amber-50 text-stone-800">
       <nav className="flex items-center justify-between px-6 py-4">
         <span className="text-lg font-bold text-amber-700">🍲 Bếp Nhà</span>
-        <div className="flex gap-4 text-sm text-stone-500">
-          {Object.keys(CATEGORIES).map((t) => <span key={t}>{t}</span>)}
+        <div className="flex gap-1 text-sm">
+          <Link href="/" className={tabClass(activeCat === null)}>Tất cả</Link>
+          {Object.keys(CATEGORIES).map((t) => (
+            <Link key={t} href={`/?cat=${encodeURIComponent(t)}`} className={tabClass(activeCat === t)}>
+              {t}
+            </Link>
+          ))}
         </div>
       </nav>
 
-      <header className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+      <header className="flex flex-col items-center gap-4 px-6 pt-12 pb-2 text-center">
         <p className="text-xs uppercase tracking-widest text-amber-600">Kho công thức mỗi ngày</p>
         <h1 className="text-3xl font-bold">Hôm nay nấu món gì?</h1>
-        <p className="text-stone-500">Nhập tên món ăn để xem công thức, nguyên liệu và các bước.</p>
-        <RecipeSearch />
+        <p className="text-stone-500">Nhập tên món hoặc bấm vào món để xem công thức, nguyên liệu và các bước.</p>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 pb-16">
-        {Object.entries(CATEGORIES).map(([cat, items]) => (
-          <section key={cat} className="mb-10">
-            <h2 className="mb-4 text-xl font-semibold">{cat}</h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {items.map((r) => (
-                <article key={r.name} className="rounded-xl bg-white p-4 shadow-sm">
-                  <h3 className="font-medium">{r.name}</h3>
-                  <p className="mt-1 text-sm text-stone-500">{r.desc}</p>
-                  <div className="mt-3 flex justify-between text-xs text-stone-400">
-                    <span>⏱ {r.time}′</span><span>{r.level}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
-      </main>
+      <RecipeSearch categories={CATEGORIES} activeCategory={activeCat} />
 
       <footer className="border-t border-amber-100 py-6 text-center text-sm text-stone-400">
         Bếp Nhà · Công thức nấu ăn Việt
