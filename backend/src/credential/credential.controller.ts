@@ -9,9 +9,9 @@ import {
   UseGuards,
   ParseUUIDPipe,
   Put,
-  Ip,
   Headers,
 } from '@nestjs/common';
+import { ClientIp } from 'src/client-ip.decorator';
 import { CredentialService } from './credential.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { SessionData } from 'express-session';
@@ -25,7 +25,7 @@ export class CredentialController {
   constructor(
     private readonly credentialService: CredentialService,
     private readonly securityLog: SecurityLogService,
-  ) { }
+  ) {}
 
   @Get()
   async list(@Session() session: SessionData) {
@@ -37,7 +37,7 @@ export class CredentialController {
   async create(
     @Session() session: SessionData,
     @Body() dto: CreateCredentialDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const result = await this.credentialService.create(session.userId, dto);
@@ -56,14 +56,10 @@ export class CredentialController {
     @Param('id', ParseUUIDPipe) id: string,
     @Session() session: SessionData,
     @Body() dto: CreateCredentialDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    const result = await this.credentialService.update(
-      id,
-      session.userId!,
-      dto,
-    );
+    const result = await this.credentialService.update(id, session.userId, dto);
     await this.securityLog.record({
       event: 'credential_updated',
       userId: session.userId,
@@ -79,10 +75,10 @@ export class CredentialController {
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Session() session: SessionData,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    const result = await this.credentialService.remove(id, session.userId!);
+    const result = await this.credentialService.remove(id, session.userId);
     await this.securityLog.record({
       event: 'credential_deleted',
       userId: session.userId,

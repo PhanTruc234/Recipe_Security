@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import session from 'express-session';
 import { ValidationPipe } from '@nestjs/common';
@@ -7,10 +8,18 @@ import connectPgSimple from 'connect-pg-simple';
 import { Pool } from 'pg';
 import { csrfProtection } from './csrf.middleware';
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const trustProxy = process.env.TRUST_PROXY;
+  app.set(
+    'trust proxy',
+    trustProxy === undefined
+      ? false
+      : /^\d+$/.test(trustProxy)
+        ? Number(trustProxy)
+        : trustProxy,
+  );
   app.use(helmet());
   const PgSession = connectPgSimple(session);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
   const sessionPool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: true },
@@ -19,7 +28,6 @@ async function bootstrap() {
   app.use(
     session({
       store: new PgSession({
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         pool: sessionPool,
         tableName: 'session',
         createTableIfMissing: true,

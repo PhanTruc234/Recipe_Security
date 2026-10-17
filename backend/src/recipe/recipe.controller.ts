@@ -3,11 +3,11 @@ import {
   Controller,
   Get,
   Headers,
-  Ip,
   Post,
   Session,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ClientIp } from 'src/client-ip.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { SessionData } from 'express-session';
 import { RecipeService } from './recipe.service';
@@ -22,7 +22,7 @@ export class RecipeController {
   async search(
     @Body() dto: SearchDto,
     @Session() session: SessionData,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const result = await this.recipeService.search(dto.query, {

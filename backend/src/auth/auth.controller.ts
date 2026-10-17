@@ -4,7 +4,6 @@ import {
   Controller,
   Get,
   Headers,
-  Ip,
   Post,
   Query,
   Req,
@@ -14,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { ClientIp } from 'src/client-ip.decorator';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -52,7 +52,7 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Req() req: Request,
     @Session() session: SessionData,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const { id, ...bundle } = await this.authService.register(dto);
@@ -73,7 +73,7 @@ export class AuthController {
     @Req() req: Request,
     @Body() dto: LoginDto,
     @Session() session: SessionData,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const result = await this.authService.login(dto).catch(async (e) => {
@@ -172,7 +172,7 @@ export class AuthController {
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const userId = req.session.userId ?? null;
@@ -201,7 +201,7 @@ export class AuthController {
   async enable2fa(
     @Session() session: SessionData,
     @Body() dto: CodeDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const secret = session.pendingTotpSecret;
@@ -232,7 +232,7 @@ export class AuthController {
     @Req() req: Request,
     @Body() dto: CodeDto,
     @Session() session: SessionData,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const pending = session.pending2fa;
@@ -290,7 +290,7 @@ export class AuthController {
   async disable2fa(
     @Session() session: SessionData,
     @Body() dto: CodeDto,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     const user = await this.authService.findById(session.userId);

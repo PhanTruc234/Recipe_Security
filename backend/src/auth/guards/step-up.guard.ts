@@ -7,6 +7,7 @@ import {
 import { Request } from 'express';
 import { AuthService } from '../auth.service';
 import { SecurityLogService } from '../../security-log/security-log.service';
+import { extractClientIp } from '../../client-ip.decorator';
 
 @Injectable()
 export class StepUpGuard implements CanActivate {
@@ -38,7 +39,7 @@ export class StepUpGuard implements CanActivate {
       await this.securityLog.record({
         event: 'stepup_failed',
         userId,
-        ip: req.ip,
+        ip: extractClientIp(req),
         userAgent: req.header('user-agent') ?? null,
         context: { action: 'credential_delete' },
       });

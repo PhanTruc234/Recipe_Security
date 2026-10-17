@@ -2,11 +2,11 @@ import {
   Body,
   Controller,
   Headers,
-  Ip,
   Post,
   Session,
   UseGuards,
 } from '@nestjs/common';
+import { ClientIp } from 'src/client-ip.decorator';
 import { Throttle } from '@nestjs/throttler';
 import { SessionData } from 'express-session';
 import { VaultGuard } from '../auth/guards/vault.guard';
@@ -27,7 +27,7 @@ export class UrlrepController {
   async reputation(
     @Body() dto: ReputationDto,
     @Session() session: SessionData,
-    @Ip() ip: string,
+    @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
     if (!this.urlrep.anyProviderConfigured()) {
