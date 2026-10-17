@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     const isAdmin = session?.role === 'admin';
 
     return (
-        <div className="min-h-full bg-amber-50">
+        <div className="min-h-screen bg-amber-50">
             <nav className="flex items-center justify-between border-b border-amber-100 bg-white px-6 py-3">
                 <Link href="/vault" className="font-bold text-amber-700">🍲 Bếp Nhà</Link>
                 <div className="flex items-center gap-2 text-sm">

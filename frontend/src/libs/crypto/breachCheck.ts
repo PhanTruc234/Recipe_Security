@@ -1,4 +1,4 @@
-const API = 'https://api.pwnedpasswords.com/range/';
+const API = 'https://api.pwnedpasswords.com/range/'; // Have I Been Pwned (HIBP)
 
 async function sha1Hex(text: string): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text));

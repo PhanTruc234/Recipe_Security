@@ -22,7 +22,7 @@ export function UnlockScreen() {
     }
 
     return (
-        <section className="mx-auto mt-10 max-w-sm rounded-2xl bg-white p-6 shadow">
+        <section className="mx-auto mt-10 max-w-sm rounded-2xl bg-white p-6 text-stone-800 shadow">
             <p className="text-xs uppercase tracking-widest text-amber-600">Kho đang bị khóa</p>
             <h1 className="text-2xl font-bold">Mở khóa kho</h1>
             {(lockReason === 'idle' || lockReason === 'server') && (

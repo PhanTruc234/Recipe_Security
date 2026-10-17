@@ -10,7 +10,7 @@ export default async function FakePage() {
     const notes = data.notes ?? [];
 
     return (
-        <div className="min-h-full bg-stone-50 text-stone-800">
+        <div className="min-h-screen bg-stone-50 text-stone-800">
             <nav className="flex items-center justify-between border-b border-stone-200 bg-white px-6 py-3">
                 <span className="font-semibold">Ghi chú của tôi</span>
                 <Link href="/" className="text-sm text-stone-500 hover:text-stone-700">Đóng</Link>
