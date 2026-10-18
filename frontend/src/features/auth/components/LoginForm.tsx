@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,8 +24,13 @@ export function LoginForm() {
     const [pendingPassword, setPendingPassword] = useState('');
     const [serverError, setServerError] = useState('');
     const [lockRemaining, setLockRemaining] = useState(0);
-    const [mounted, setMounted] = useState(false);
     const router = useRouter();
+    // true chỉ SAU khi hydrate ở client (hydration-safe, không setState trong effect)
+    const mounted = useSyncExternalStore(
+        () => () => { },
+        () => true,
+        () => false,
+    );
 
     const { session } = useSession();
     const login = useLogin();
@@ -45,8 +50,6 @@ export function LoginForm() {
         const id = setTimeout(() => setLockRemaining((s) => s - 1), 1000);
         return () => clearTimeout(id);
     }, [lockRemaining]);
-
-    useEffect(() => setMounted(true), []);
 
     const startLock = (message: string) => {
         const m = /(\d+)\s*giây/.exec(message);
@@ -81,7 +84,6 @@ export function LoginForm() {
             startLock(res.error ?? '');
             return setServerError(res.error ?? 'Nhập 2FA sai quá nhiều, thử lại sau.');
         }
-        // Chỉ đá về trang mật khẩu khi PHIÊN 2FA hết hạn; mã sai thì ở lại cho nhập tiếp
         if (res.status === 401 && (res.error ?? '').includes('hết hạn')) {
             setStep('password');
             return setServerError('Phiên xác thực hết hạn, đăng nhập lại.');
