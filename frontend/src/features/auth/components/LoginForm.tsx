@@ -14,7 +14,7 @@ const loginSchema = z.object({
     password: z.string().min(1, 'Nhập mật khẩu'),
 });
 const codeSchema = z.object({
-    code: z.string().min(8, 'Mã tối thiểu 8 ký tự'),
+    code: z.string().min(6, 'Mã tối thiểu 8 ký tự'),
 });
 type LoginValues = z.infer<typeof loginSchema>;
 type CodeValues = z.infer<typeof codeSchema>;
@@ -114,8 +114,8 @@ export function LoginForm() {
                             {lockRemaining > 0
                                 ? `Tạm khóa ${mmss(lockRemaining)}`
                                 : login.isPending
-                                  ? 'Đang tạo khóa trên máy bạn...'
-                                  : 'Tiếp tục'}
+                                    ? 'Đang tạo khóa trên máy bạn...'
+                                    : 'Tiếp tục'}
                         </button>
                     </form>
                     <p className="mt-2 text-sm">Chưa có tài khoản? <Link href="/register" className="text-amber-700 underline">Tạo tài khoản</Link></p>
