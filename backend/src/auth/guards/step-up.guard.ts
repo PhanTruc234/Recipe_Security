@@ -33,7 +33,7 @@ export class StepUpGuard implements CanActivate {
     if (!user.totpEnabled || !user.totpSecret) return true;
 
     const tkey = `2fa:${userId}`;
-    const locked = this.loginThrottle.lockedSeconds(tkey);
+    const locked = await this.loginThrottle.lockedSeconds(tkey);
     if (locked > 0) {
       throw new HttpException(
         {
@@ -52,7 +52,7 @@ export class StepUpGuard implements CanActivate {
 
     const ok = await this.authService.verifyTwoFactor(userId, code);
     if (!ok) {
-      this.loginThrottle.recordFailure(tkey);
+      await this.loginThrottle.recordFailure(tkey);
       await this.securityLog.record({
         event: 'stepup_failed',
         userId,
@@ -60,7 +60,7 @@ export class StepUpGuard implements CanActivate {
         userAgent: req.header('user-agent') ?? null,
         context: { action: 'credential_delete' },
       });
-      const remain = this.loginThrottle.lockedSeconds(tkey);
+      const remain = await this.loginThrottle.lockedSeconds(tkey);
       if (remain > 0) {
         throw new HttpException(
           {
@@ -73,7 +73,7 @@ export class StepUpGuard implements CanActivate {
       }
       throw new UnauthorizedException('Mã 2FA không đúng');
     }
-    this.loginThrottle.reset(tkey);
+    await this.loginThrottle.reset(tkey);
     return true;
   }
 }

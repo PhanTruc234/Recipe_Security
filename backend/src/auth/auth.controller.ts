@@ -101,7 +101,7 @@ export class AuthController {
   ) {
     const key = dto.email.toLowerCase();
     // Đang bị khóa -> chặn NGAY, không kiểm mật khẩu (đúng cũng không cho qua)
-    const locked = this.loginThrottle.lockedSeconds(key);
+    const locked = await this.loginThrottle.lockedSeconds(key);
     if (locked > 0) {
       throw new HttpException(
         {
@@ -115,9 +115,9 @@ export class AuthController {
 
     const result = await this.authService.login(dto).catch(async (e) => {
       // A2: ghi nhật ký đăng nhập sai (không kèm email -> chống dò)
-      this.loginThrottle.recordFailure(key);
+      await this.loginThrottle.recordFailure(key);
       await this.securityLog.record({ event: 'login_failed', ip, userAgent });
-      const remain = this.loginThrottle.lockedSeconds(key);
+      const remain = await this.loginThrottle.lockedSeconds(key);
       if (remain > 0) {
         throw new HttpException(
           {
@@ -132,7 +132,7 @@ export class AuthController {
     });
 
     // Mật khẩu đúng -> xóa bộ đếm sai
-    this.loginThrottle.reset(key);
+    await this.loginThrottle.reset(key);
 
     if (result.totpEnabled) {
       session.pending2fa = {
@@ -294,7 +294,7 @@ export class AuthController {
     }
 
     const tkey = `2fa:${pending.userId}`;
-    const locked = this.loginThrottle.lockedSeconds(tkey);
+    const locked = await this.loginThrottle.lockedSeconds(tkey);
     if (locked > 0) {
       throw new HttpException(
         {
@@ -311,14 +311,14 @@ export class AuthController {
       dto.code,
     );
     if (!bundle) {
-      this.loginThrottle.recordFailure(tkey);
+      await this.loginThrottle.recordFailure(tkey);
       await this.securityLog.record({
         event: '2fa_failed',
         userId: pending.userId,
         ip,
         userAgent,
       });
-      const remain = this.loginThrottle.lockedSeconds(tkey);
+      const remain = await this.loginThrottle.lockedSeconds(tkey);
       if (remain > 0) {
         throw new HttpException(
           {
@@ -331,7 +331,7 @@ export class AuthController {
       }
       throw new UnauthorizedException('Mã 2FA không đúng');
     }
-    this.loginThrottle.reset(tkey);
+    await this.loginThrottle.reset(tkey);
     const newDevice = await this.securityLog.isNewDevice(
       pending.userId,
       ip ?? null,
@@ -392,7 +392,7 @@ export class AuthController {
     }
 
     const tkey = `2fa:${session.userId}`;
-    const locked = this.loginThrottle.lockedSeconds(tkey);
+    const locked = await this.loginThrottle.lockedSeconds(tkey);
     if (locked > 0) {
       throw new HttpException(
         {
@@ -406,8 +406,8 @@ export class AuthController {
 
     const ok = await this.authService.verifyTwoFactor(session.userId, dto.code);
     if (!ok) {
-      this.loginThrottle.recordFailure(tkey);
-      const remain = this.loginThrottle.lockedSeconds(tkey);
+      await this.loginThrottle.recordFailure(tkey);
+      const remain = await this.loginThrottle.lockedSeconds(tkey);
       if (remain > 0) {
         throw new HttpException(
           {
@@ -420,7 +420,7 @@ export class AuthController {
       }
       throw new UnauthorizedException('Mã 2FA không đúng');
     }
-    this.loginThrottle.reset(tkey);
+    await this.loginThrottle.reset(tkey);
 
     await this.authService.disableTotp(session.userId);
     await this.securityLog.record({

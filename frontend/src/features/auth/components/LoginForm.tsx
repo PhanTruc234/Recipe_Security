@@ -78,12 +78,13 @@ export function LoginForm() {
             startLock(res.error ?? '');
             return setServerError(res.error ?? 'Nhập 2FA sai quá nhiều, thử lại sau.');
         }
-        if (res.status === 401) {
+        // Chỉ đá về trang mật khẩu khi PHIÊN 2FA hết hạn; mã sai thì ở lại cho nhập tiếp
+        if (res.status === 401 && (res.error ?? '').includes('hết hạn')) {
             setStep('password');
             return setServerError('Phiên xác thực hết hạn, đăng nhập lại.');
         }
         if (!res.ok) {
-            return setServerError('Mã không đúng (hoặc dùng mã dự phòng).');
+            return setServerError(res.error ?? 'Mã 2FA không đúng, thử lại.');
         }
         goByRole(res.data?.role);
     });
