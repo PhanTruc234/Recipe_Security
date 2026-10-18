@@ -1,0 +1,27 @@
+# === Bí mật / môi trường (KHÔNG BAO GIỜ commit) ===
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# === File tự sinh khi kiểm thử (ZAP...) ===
+zap-report.html
+zap-report.*
+/zap.yaml
+*.zap
+report.html
+report.md
+report.json
+
+# === Build / dependency (phòng hờ, framework đã có) ===
+node_modules/
+dist/
+.next/
+coverage/
+
+# === OS / editor ===
+.DS_Store
+Thumbs.db
+*.log
