@@ -24,6 +24,7 @@ export function LoginForm() {
     const [pendingPassword, setPendingPassword] = useState('');
     const [serverError, setServerError] = useState('');
     const [lockRemaining, setLockRemaining] = useState(0);
+    const [mounted, setMounted] = useState(false);
     const router = useRouter();
 
     const { session } = useSession();
@@ -44,6 +45,8 @@ export function LoginForm() {
         const id = setTimeout(() => setLockRemaining((s) => s - 1), 1000);
         return () => clearTimeout(id);
     }, [lockRemaining]);
+
+    useEffect(() => setMounted(true), []);
 
     const startLock = (message: string) => {
         const m = /(\d+)\s*giây/.exec(message);
@@ -99,7 +102,7 @@ export function LoginForm() {
 
             {step === 'password' ? (
                 <>
-                    <form onSubmit={onPassword} className="mt-4 space-y-3">
+                    <form method="post" onSubmit={onPassword} className="mt-4 space-y-3">
                         <div>
                             <label className="text-sm">Email</label>
                             <input type="email" autoFocus className={input} {...loginForm.register('email')} />
@@ -110,7 +113,7 @@ export function LoginForm() {
                             <input type="password" className={input} {...loginForm.register('password')} />
                             {loginForm.formState.errors.password && <p className={err}>{loginForm.formState.errors.password.message}</p>}
                         </div>
-                        <button type="submit" disabled={login.isPending || lockRemaining > 0}
+                        <button type="submit" disabled={!mounted || login.isPending || lockRemaining > 0}
                             className="w-full rounded-lg bg-amber-600 py-2.5 font-medium text-white disabled:opacity-60">
                             {lockRemaining > 0
                                 ? `Tạm khóa ${mmss(lockRemaining)}`
@@ -122,11 +125,11 @@ export function LoginForm() {
                     <p className="mt-2 text-sm">Chưa có tài khoản? <Link href="/register" className="text-amber-700 underline">Tạo tài khoản</Link></p>
                 </>
             ) : (
-                <form onSubmit={onCode} className="mt-4 space-y-3">
+                <form method="post" onSubmit={onCode} className="mt-4 space-y-3">
                     <p className="text-sm text-stone-500">Nhập mã 6 số từ app Authenticator, hoặc một mã dự phòng.</p>
                     <input inputMode="numeric" autoFocus placeholder="123456" className={input} {...codeForm.register('code')} />
                     {codeForm.formState.errors.code && <p className={err}>{codeForm.formState.errors.code.message}</p>}
-                    <button type="submit" disabled={verify.isPending || lockRemaining > 0}
+                    <button type="submit" disabled={!mounted || verify.isPending || lockRemaining > 0}
                         className="w-full rounded-lg bg-amber-600 py-2.5 font-medium text-white disabled:opacity-60">
                         {lockRemaining > 0 ? `Tạm khóa ${mmss(lockRemaining)}` : 'Mở kho'}
                     </button>

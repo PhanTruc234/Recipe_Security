@@ -58,7 +58,7 @@ export function RegisterForm() {
         <>
             <h1 className="text-2xl font-bold">Tạo tài khoản</h1>
             {serverError && <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{serverError}</div>}
-            <form onSubmit={onSubmit} className="mt-4 space-y-3">
+            <form method="post" onSubmit={onSubmit} className="mt-4 space-y-3">
                 <div>
                     <label className="text-sm">Tên hiển thị</label>
                     <input autoFocus className={input} {...field('name')} />
