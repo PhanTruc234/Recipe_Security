@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { serverFetch } from '@/libs/server-api';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import type { SessionInfo } from '@/types';
-import { NewDeviceBanner } from '@/components/auth/NewDeviceBanner';
+import { NewDeviceBanner } from '@/features/auth/components/NewDeviceBanner';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
     const session = await serverFetch<SessionInfo>('/auth/me');

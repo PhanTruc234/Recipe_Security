@@ -1,4 +1,4 @@
-import { DeviceList } from '@/components/auth/DeviceList';
+import { DeviceList } from '@/features/auth/components/DeviceList';
 
 export default function DevicesPage() {
     return (
