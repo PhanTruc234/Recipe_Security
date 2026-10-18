@@ -8,7 +8,8 @@ import { CredentialModule } from './credential/credential.module';
 import { SecurityLogModule } from './security-log/security-log.module';
 import { AdminModule } from './admin/admin.module';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { RealIpThrottlerGuard } from './real-ip-throttler.guard';
 import { RecipeModule } from './recipe/recipe.module';
 import { UrlrepModule } from './urlrep/urlrep.module';
 @Module({
@@ -37,6 +38,9 @@ import { UrlrepModule } from './urlrep/urlrep.module';
     UrlrepModule,
   ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: RealIpThrottlerGuard },
+  ],
 })
 export class AppModule {}

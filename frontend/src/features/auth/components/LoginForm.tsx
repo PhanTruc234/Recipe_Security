@@ -14,7 +14,7 @@ const loginSchema = z.object({
     password: z.string().min(1, 'Nhập mật khẩu'),
 });
 const codeSchema = z.object({
-    code: z.string().min(6, 'Mã tối thiểu 6 ký tự'),
+    code: z.string().min(8, 'Mã tối thiểu 8 ký tự'),
 });
 type LoginValues = z.infer<typeof loginSchema>;
 type CodeValues = z.infer<typeof codeSchema>;

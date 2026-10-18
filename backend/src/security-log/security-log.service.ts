@@ -28,7 +28,7 @@ export class SecurityLogService {
   constructor(
     @InjectRepository(SecurityLog)
     private readonly repo: Repository<SecurityLog>,
-  ) {}
+  ) { }
   private auditKey(): Buffer {
     return createHash('sha256').update(process.env.AUDIT_LOG_KEY).digest();
   }
@@ -97,7 +97,7 @@ export class SecurityLogService {
         this.logger.error(`Ghi security log thất bại: ${String(err)}`);
       }
     });
-    this.writeChain = task.catch(() => {});
+    this.writeChain = task.catch(() => { });
     return task;
   }
   async verifyChain() {
@@ -141,8 +141,6 @@ export class SecurityLogService {
     return { ok: issues.length === 0, total: rows.length, issues };
   }
 
-  // Thiết bị lạ: cặp (IP, user-agent) chưa từng login_success với user này,
-  // nhưng user ĐÃ từng login thành công (để không báo ngay ở lần đăng nhập đầu).
   async isNewDevice(
     userId: string,
     ip: string | null,

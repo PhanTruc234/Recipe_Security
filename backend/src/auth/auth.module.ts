@@ -7,11 +7,18 @@ import { SecurityLogModule } from 'src/security-log/security-log.module';
 import { TotpService } from './totp.service';
 import { CryptoService } from './crypto.service';
 import { DeviceService } from './device.service';
+import { LoginThrottleService } from './login-throttle.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User]), SecurityLogModule],
   controllers: [AuthController],
-  providers: [AuthService, TotpService, CryptoService, DeviceService],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    TotpService,
+    CryptoService,
+    DeviceService,
+    LoginThrottleService,
+  ],
+  exports: [AuthService, LoginThrottleService],
 })
 export class AuthModule {}

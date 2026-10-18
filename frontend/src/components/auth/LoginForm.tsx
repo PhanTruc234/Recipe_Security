@@ -23,6 +23,7 @@ export function LoginForm() {
     const [step, setStep] = useState<'password' | 'twofa'>('password');
     const [pendingPassword, setPendingPassword] = useState('');
     const [serverError, setServerError] = useState('');
+    const [lockRemaining, setLockRemaining] = useState(0);
     const router = useRouter();
 
     const { session } = useSession();
@@ -38,13 +39,27 @@ export function LoginForm() {
         if (session.authenticated) router.replace(session.role === 'admin' ? '/admin' : '/vault');
     }, [session, router]);
 
+    useEffect(() => {
+        if (lockRemaining <= 0) return;
+        const id = setTimeout(() => setLockRemaining((s) => s - 1), 1000);
+        return () => clearTimeout(id);
+    }, [lockRemaining]);
+
+    const startLock = (message: string) => {
+        const m = /(\d+)\s*giây/.exec(message);
+        setLockRemaining(m ? Number(m[1]) : 120);
+    };
+    const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
     const goByRole = (role?: string) => router.replace(role === 'admin' ? '/admin' : '/vault');
 
     const onPassword = loginForm.handleSubmit(async ({ email, password }) => {
+        if (lockRemaining > 0) return;
         setServerError('');
         const res = await login.mutateAsync({ email, password });
         if (res.status === 429) {
-            return setServerError('Quá nhiều lần thử. Đợi một phút.');
+            startLock(res.error ?? '');
+            return setServerError(res.error ?? 'Đăng nhập tạm khóa, thử lại sau.');
         }
         if (!res.ok) {
             return setServerError('Sai email hoặc mật khẩu.');
@@ -56,10 +71,12 @@ export function LoginForm() {
     });
 
     const onCode = codeForm.handleSubmit(async ({ code }) => {
+        if (lockRemaining > 0) return;
         setServerError('');
         const res = await verify.mutateAsync({ code, password: pendingPassword });
         if (res.status === 429) {
-            return setServerError('Quá nhiều lần thử mã. Đợi một phút.');
+            startLock(res.error ?? '');
+            return setServerError(res.error ?? 'Nhập 2FA sai quá nhiều, thử lại sau.');
         }
         if (res.status === 401) {
             setStep('password');
@@ -92,9 +109,13 @@ export function LoginForm() {
                             <input type="password" className={input} {...loginForm.register('password')} />
                             {loginForm.formState.errors.password && <p className={err}>{loginForm.formState.errors.password.message}</p>}
                         </div>
-                        <button type="submit" disabled={login.isPending}
+                        <button type="submit" disabled={login.isPending || lockRemaining > 0}
                             className="w-full rounded-lg bg-amber-600 py-2.5 font-medium text-white disabled:opacity-60">
-                            {login.isPending ? 'Đang tạo khóa trên máy bạn...' : 'Tiếp tục'}
+                            {lockRemaining > 0
+                                ? `Tạm khóa ${mmss(lockRemaining)}`
+                                : login.isPending
+                                  ? 'Đang tạo khóa trên máy bạn...'
+                                  : 'Tiếp tục'}
                         </button>
                     </form>
                     <p className="mt-2 text-sm">Chưa có tài khoản? <Link href="/register" className="text-amber-700 underline">Tạo tài khoản</Link></p>
@@ -104,8 +125,10 @@ export function LoginForm() {
                     <p className="text-sm text-stone-500">Nhập mã 6 số từ app Authenticator, hoặc một mã dự phòng.</p>
                     <input inputMode="numeric" autoFocus placeholder="123456" className={input} {...codeForm.register('code')} />
                     {codeForm.formState.errors.code && <p className={err}>{codeForm.formState.errors.code.message}</p>}
-                    <button type="submit" disabled={verify.isPending}
-                        className="w-full rounded-lg bg-amber-600 py-2.5 font-medium text-white disabled:opacity-60">Mở kho</button>
+                    <button type="submit" disabled={verify.isPending || lockRemaining > 0}
+                        className="w-full rounded-lg bg-amber-600 py-2.5 font-medium text-white disabled:opacity-60">
+                        {lockRemaining > 0 ? `Tạm khóa ${mmss(lockRemaining)}` : 'Mở kho'}
+                    </button>
                     <button type="button" onClick={() => { setStep('password'); setServerError(''); }}
                         className="w-full text-sm text-stone-500">Quay lại</button>
                 </form>

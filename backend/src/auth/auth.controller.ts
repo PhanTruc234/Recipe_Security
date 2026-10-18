@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Headers,
+  HttpException,
   NotFoundException,
   Param,
   Post,
@@ -30,6 +31,7 @@ import { CodeDto } from './dto/code.dto';
 import { LabelDto } from './dto/label.dto';
 import { randomBytes } from 'crypto';
 import { DeviceService } from './device.service';
+import { LoginThrottleService } from './login-throttle.service';
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -37,6 +39,7 @@ export class AuthController {
     private readonly securityLog: SecurityLogService,
     private readonly totp: TotpService,
     private readonly deviceService: DeviceService,
+    private readonly loginThrottle: LoginThrottleService,
   ) {}
 
   private regenerate(req: Request): Promise<void> {
@@ -96,11 +99,40 @@ export class AuthController {
     @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {
+    const key = dto.email.toLowerCase();
+    // Đang bị khóa -> chặn NGAY, không kiểm mật khẩu (đúng cũng không cho qua)
+    const locked = this.loginThrottle.lockedSeconds(key);
+    if (locked > 0) {
+      throw new HttpException(
+        {
+          statusCode: 429,
+          message: `Đăng nhập tạm khóa, thử lại sau ${locked} giây.`,
+          retryAfter: locked,
+        },
+        429,
+      );
+    }
+
     const result = await this.authService.login(dto).catch(async (e) => {
       // A2: ghi nhật ký đăng nhập sai (không kèm email -> chống dò)
+      this.loginThrottle.recordFailure(key);
       await this.securityLog.record({ event: 'login_failed', ip, userAgent });
+      const remain = this.loginThrottle.lockedSeconds(key);
+      if (remain > 0) {
+        throw new HttpException(
+          {
+            statusCode: 429,
+            message: `Sai quá nhiều lần. Đăng nhập tạm khóa, thử lại sau ${remain} giây.`,
+            retryAfter: remain,
+          },
+          429,
+        );
+      }
       throw e;
     });
+
+    // Mật khẩu đúng -> xóa bộ đếm sai
+    this.loginThrottle.reset(key);
 
     if (result.totpEnabled) {
       session.pending2fa = {
@@ -261,13 +293,45 @@ export class AuthController {
       throw new UnauthorizedException('Phiên xác thực 2 lớp đã hết hạn');
     }
 
+    const tkey = `2fa:${pending.userId}`;
+    const locked = this.loginThrottle.lockedSeconds(tkey);
+    if (locked > 0) {
+      throw new HttpException(
+        {
+          statusCode: 429,
+          message: `Nhập 2FA sai quá nhiều, thử lại sau ${locked} giây.`,
+          retryAfter: locked,
+        },
+        429,
+      );
+    }
+
     const bundle = await this.authService.verifyTwoFactor(
       pending.userId,
       dto.code,
     );
     if (!bundle) {
+      this.loginThrottle.recordFailure(tkey);
+      await this.securityLog.record({
+        event: '2fa_failed',
+        userId: pending.userId,
+        ip,
+        userAgent,
+      });
+      const remain = this.loginThrottle.lockedSeconds(tkey);
+      if (remain > 0) {
+        throw new HttpException(
+          {
+            statusCode: 429,
+            message: `Nhập 2FA sai quá nhiều, thử lại sau ${remain} giây.`,
+            retryAfter: remain,
+          },
+          429,
+        );
+      }
       throw new UnauthorizedException('Mã 2FA không đúng');
     }
+    this.loginThrottle.reset(tkey);
     const newDevice = await this.securityLog.isNewDevice(
       pending.userId,
       ip ?? null,
@@ -326,10 +390,37 @@ export class AuthController {
     if (!user.totpEnabled) {
       throw new BadRequestException('2FA chưa được bật');
     }
+
+    const tkey = `2fa:${session.userId}`;
+    const locked = this.loginThrottle.lockedSeconds(tkey);
+    if (locked > 0) {
+      throw new HttpException(
+        {
+          statusCode: 429,
+          message: `Nhập 2FA sai quá nhiều, thử lại sau ${locked} giây.`,
+          retryAfter: locked,
+        },
+        429,
+      );
+    }
+
     const ok = await this.authService.verifyTwoFactor(session.userId, dto.code);
     if (!ok) {
+      this.loginThrottle.recordFailure(tkey);
+      const remain = this.loginThrottle.lockedSeconds(tkey);
+      if (remain > 0) {
+        throw new HttpException(
+          {
+            statusCode: 429,
+            message: `Nhập 2FA sai quá nhiều, thử lại sau ${remain} giây.`,
+            retryAfter: remain,
+          },
+          429,
+        );
+      }
       throw new UnauthorizedException('Mã 2FA không đúng');
     }
+    this.loginThrottle.reset(tkey);
 
     await this.authService.disableTotp(session.userId);
     await this.securityLog.record({
