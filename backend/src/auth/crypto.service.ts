@@ -18,7 +18,7 @@ export class CryptoService {
 
   encryptServer(plain: string): string {
     const iv = randomBytes(12);
-    const cipher = createCipheriv(CIPHER, this.serverKey(), iv);
+    const cipher = createCipheriv(CIPHER, this.serverKey(), iv, { authTagLength: 16 });
     const enc = Buffer.concat([
       cipher.update(Buffer.from(plain, 'utf8')),
       cipher.final(),
@@ -38,6 +38,7 @@ export class CryptoService {
       CIPHER,
       this.serverKey(),
       Buffer.from(j.iv, 'base64'),
+      { authTagLength: 16 }
     );
     d.setAuthTag(Buffer.from(j.tag, 'base64'));
     return Buffer.concat([
