@@ -2,6 +2,10 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
+const useSsl =
+  process.env.DATABASE_SSL === 'true' ||
+  (process.env.DATABASE_URL?.includes('sslmode=require') ?? false);
+
 export default new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
@@ -9,5 +13,12 @@ export default new DataSource({
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
   logging: true,
-  ssl: { rejectUnauthorized: true },
+  ...(useSsl
+    ? {
+        ssl: {
+          rejectUnauthorized:
+            process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
+        },
+      }
+    : {}),
 });
