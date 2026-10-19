@@ -21,7 +21,13 @@ export function RecipeSearch({
     const router = useRouter();
 
     const search = useMutation({
-        mutationFn: (q: string) => recipeApi.search(q),
+        mutationFn: async (q: string) => {
+            let res = await recipeApi.search(q);
+            if (res.status === 403) {
+                res = await recipeApi.search(q);
+            }
+            return res;
+        },
         onSuccess: (res) => {
             if (res.status === 429) return setMessage('Bạn tìm hơi nhanh, thử lại sau ít phút.');
             if (!res.ok || !res.data) return setMessage('Không tìm thấy món phù hợp.');
