@@ -14,16 +14,22 @@ export class TotpService {
   keyuri(email: string, secret: string): string {
     return generateURI({ issuer: ISSUER, label: email, secret });
   }
-  async verify(token: string, secret: string): Promise<boolean> {
+  // Trả về time-step của mã nếu hợp lệ VÀ mới hơn afterTimeStep, ngược lại null
+  async verifyStep(
+    token: string,
+    secret: string,
+    afterTimeStep?: number | null,
+  ): Promise<number | null> {
     try {
       const res = await verify({
         secret,
         token: String(token),
         epochTolerance: 30,
+        afterTimeStep: afterTimeStep ?? undefined,
       });
-      return res.valid;
+      return res.valid && 'timeStep' in res ? res.timeStep : null;
     } catch {
-      return false;
+      return null;
     }
   }
 

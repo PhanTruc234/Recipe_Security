@@ -3,11 +3,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { KeyStore } from '@/stores/key.store';
 import { useCredentials } from '@/features/credential/use-credentials';
 import { useSaveCredential, useDeleteCredential } from '@/features/credential/use-credential-mutations';
-import { decryptRows, type VaultItem } from '@/features/credential/decrypt';
+import { useQueryClient } from '@tanstack/react-query';
+import { decryptRows, upgradeLegacyItems, type VaultItem } from '@/features/credential/decrypt';
 import { UnlockScreen } from './UnlockScreen';
 import { CredentialForm } from './CredentialForm';
 import { DeleteConfirm } from './DeleteConfirm';
-import type { CredentialsResponse } from '@/types';
+import type { CredentialsResponse, StepUp } from '@/types';
 import type { CredentialData } from '@/libs/crypto/vault';
 import { TwoFactorSettings } from './TwoFactorSettings';
 import { useScanBreaches } from '@/features/credential/use-scan-breaches';
@@ -32,6 +33,8 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
     const [deleting, setDeleting] = useState<VaultItem | null>(null);
     const [revealed, setRevealed] = useState<string | null>(null);
     const [toast, setToast] = useState('');
+    const [failed, setFailed] = useState(0);
+    const qc = useQueryClient();
     const { scan, scanning, progress } = useScanBreaches();
     useAutoLock(true);
 
@@ -39,8 +42,17 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
     useEffect(() => {
         const key = KeyStore.getState().encryptionKey;
         if (!key) return;
-        decryptRows(key, rows.credentials).then(setItems);
-    }, [rows.credentials, signature]);
+        let cancelled = false;
+        decryptRows(key, rows.credentials).then(async ({ items: list, failed: bad }) => {
+            if (cancelled) return;
+            setItems(list);
+            setFailed(bad);
+            if (list.some((i) => i.legacy) && (await upgradeLegacyItems(key, list)) > 0) {
+                await qc.invalidateQueries({ queryKey: ['credentials'] });
+            }
+        });
+        return () => { cancelled = true; };
+    }, [rows.credentials, signature, qc]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -53,9 +65,9 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
         try { await save.mutateAsync({ data: d, id: editing?.id }); setEditing(null); setCreating(false); return true; }
         catch { return false; }
     }
-    async function onConfirmDelete(code?: string) {
+    async function onConfirmDelete(stepUp: StepUp) {
         if (!deleting) return;
-        try { await del.mutateAsync({ id: deleting.id, code }); setDeleting(null); } catch { }
+        try { await del.mutateAsync({ id: deleting.id, stepUp }); setDeleting(null); } catch { }
     }
     async function onCopy(text: string, label: string) {
         const ok = await copyWithAutoClear(text, 15);
@@ -74,7 +86,12 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
                 </div>
             </div>
 
-            {save.isError && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{(save.error as Error).message}</div>}
+            {failed > 0 && (
+                <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {failed} mục không giải mã/xác thực được — có thể đã bị sửa hoặc tráo trên server.
+                </div>
+            )}
+            {save.isError &&<div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{(save.error as Error).message}</div>}
             {toast && <div className="mb-3 rounded-lg bg-stone-800 px-3 py-2 text-sm text-white">{toast}</div>}
             {deleting && (
                 <div className="mb-4">

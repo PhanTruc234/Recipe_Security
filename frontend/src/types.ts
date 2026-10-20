@@ -1,4 +1,9 @@
 
+export interface StepUp {
+    code?: string;   // mã 2FA (khi đã bật 2FA)
+    reauth?: string; // authHash dẫn xuất lại từ mật khẩu chủ (khi chưa bật 2FA)
+}
+
 export interface Recipe {
     name: string;
     cuisine: string;

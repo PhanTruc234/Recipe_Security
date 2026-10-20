@@ -23,6 +23,7 @@ import { LoginDto } from './dto/login.dto';
 import { SessionData } from 'express-session';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import { StepUpGuard } from './guards/step-up.guard';
+import { GateGuard, isGateOpen } from './guards/gate.guard';
 import { SecurityLogService } from 'src/security-log/security-log.service';
 import { Throttle } from '@nestjs/throttler';
 import { TotpService } from './totp.service';
@@ -70,6 +71,7 @@ export class AuthController {
     };
   }
 
+  @UseGuards(GateGuard)
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -90,6 +92,7 @@ export class AuthController {
     return bundle;
   }
 
+  @UseGuards(GateGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(
@@ -181,7 +184,7 @@ export class AuthController {
       authenticated: !!session.userId,
       userId: session.userId ?? null,
       role: session.role ?? null,
-      vaultGate: session.vaultGate ?? null,
+      vaultGate: isGateOpen(session) ? 'real' : null,
       fakeUnlocked: !!session.fakeUnlocked,
       pending2fa: !!session.pending2fa,
       newDeviceAlert: session.newDeviceAlert ?? null,
@@ -209,6 +212,7 @@ export class AuthController {
     };
   }
 
+  @UseGuards(GateGuard)
   @Get('kdf-params')
   kdfParams(@Query('email') email: string) {
     return this.authService.getKdfParams(email ?? '');
@@ -260,13 +264,15 @@ export class AuthController {
     if (!secret) {
       throw new BadRequestException('Chưa bắt đầu thiết lập 2FA');
     }
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    if (!this.totp.verify(dto.code, secret)) {
+    // Trước đây thiếu await -> Promise luôn truthy -> mã SAI vẫn bật được 2FA
+    const step = await this.totp.verifyStep(dto.code, secret);
+    if (step === null) {
       throw new UnauthorizedException('Mã 2FA không đúng');
     }
     const backupCodes = await this.authService.enableTotp(
       session.userId,
       secret,
+      step,
     );
     session.pendingTotpSecret = undefined;
     await this.securityLog.record({
@@ -278,6 +284,7 @@ export class AuthController {
     return { backupCodes };
   }
 
+  @UseGuards(GateGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('2fa/verify')
   async verify2fa(

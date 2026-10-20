@@ -23,14 +23,31 @@ export const emptyCredential = (): CredentialData => {
     };
 };
 
-export const encryptCredential = async (key: Uint8Array, data: CredentialData): Promise<Sealed> => {
-    return seal(utf8ToBytes(JSON.stringify(data)), key);
+// AAD gắn ciphertext với id của chính mục đó -> server tráo ciphertext giữa 2 mục
+// thì AES-GCM báo lỗi xác thực. Không cần userId: mỗi user đã có khóa riêng.
+const credentialAad = (id: string) => `bepnha-cred-v2:${id}`;
+
+// Đổi thành false sau khi mọi tài khoản đã mở kho 1 lần (mục cũ đã được nâng cấp hết).
+// Khi còn true, server vẫn có thể tráo các blob định dạng CŨ (không AAD).
+export const ALLOW_LEGACY_CREDENTIALS = true;
+
+export const encryptCredential = async (key: Uint8Array, id: string, data: CredentialData): Promise<Sealed> => {
+    return seal(utf8ToBytes(JSON.stringify(data)), key, credentialAad(id));
 };
 
-export const decryptCredential = async (key: Uint8Array, blob: Sealed): Promise<CredentialData> => {
-    const bytes = await open(blob, key);
-
-    return JSON.parse(bytesToUtf8(bytes)) as CredentialData;
+export const decryptCredential = async (
+    key: Uint8Array,
+    id: string,
+    blob: Sealed,
+): Promise<{ data: CredentialData; legacy: boolean }> => {
+    try {
+        const bytes = await open(blob, key, credentialAad(id));
+        return { data: JSON.parse(bytesToUtf8(bytes)) as CredentialData, legacy: false };
+    } catch (e) {
+        if (!ALLOW_LEGACY_CREDENTIALS) throw e;
+        const bytes = await open(blob, key); // định dạng cũ, không AAD
+        return { data: JSON.parse(bytesToUtf8(bytes)) as CredentialData, legacy: true };
+    }
 };
 
 const VERIFY_TEXT = 'bepnha-vault-verify-v1';

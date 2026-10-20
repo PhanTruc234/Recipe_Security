@@ -8,13 +8,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/features/auth/hooks/use-session';
 import { useLogin, useVerify2fa } from '@/features/auth/hooks/use-auth';
+import { ApiError } from '@/libs/api';
 
 const loginSchema = z.object({
     email: z.string().email('Email không hợp lệ'),
     password: z.string().min(1, 'Nhập mật khẩu'),
 });
 const codeSchema = z.object({
-    code: z.string().min(6, 'Mã tối thiểu 8 ký tự'),
+    code: z.string().min(6, 'Mã tối thiểu 6 ký tự'),
 });
 type LoginValues = z.infer<typeof loginSchema>;
 type CodeValues = z.infer<typeof codeSchema>;
@@ -62,7 +63,15 @@ export function LoginForm() {
     const onPassword = loginForm.handleSubmit(async ({ email, password }) => {
         if (lockRemaining > 0) return;
         setServerError('');
-        const res = await login.mutateAsync({ email, password });
+        let res: Awaited<ReturnType<typeof login.mutateAsync>>;
+        try {
+            res = await login.mutateAsync({ email, password });
+        } catch (e) {
+            // kdf-params trả 404 = cổng đã hết hạn
+            if (e instanceof ApiError && e.status === 404) return void router.replace('/');
+            return setServerError('Không kết nối được máy chủ, thử lại.');
+        }
+        if (res.status === 404) return void router.replace('/');
         if (res.status === 429) {
             startLock(res.error ?? '');
             return setServerError(res.error ?? 'Đăng nhập tạm khóa, thử lại sau.');
@@ -80,6 +89,7 @@ export function LoginForm() {
         if (lockRemaining > 0) return;
         setServerError('');
         const res = await verify.mutateAsync({ code, password: pendingPassword });
+        if (res.status === 404) return void router.replace('/');
         if (res.status === 429) {
             startLock(res.error ?? '');
             return setServerError(res.error ?? 'Nhập 2FA sai quá nhiều, thử lại sau.');

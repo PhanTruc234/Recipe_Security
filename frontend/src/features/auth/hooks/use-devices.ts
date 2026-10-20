@@ -1,6 +1,7 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth.api';
+import type { StepUp } from '@/types';
 
 export function useDevices() {
     return useQuery({ queryKey: ['sessions'], queryFn: authApi.sessions });
@@ -9,8 +10,8 @@ export function useDevices() {
 export function useRevokeDevice() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ deviceId, code }: { deviceId: string; code?: string }) =>
-            authApi.revokeSession(deviceId, code),
+        mutationFn: ({ deviceId, stepUp }: { deviceId: string; stepUp: StepUp }) =>
+            authApi.revokeSession(deviceId, stepUp),
         onSuccess: () => qc.invalidateQueries({ queryKey: ['sessions'] }),
     });
 }

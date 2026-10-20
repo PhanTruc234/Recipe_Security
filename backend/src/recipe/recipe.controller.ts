@@ -12,6 +12,7 @@ import { Throttle } from '@nestjs/throttler';
 import { SessionData } from 'express-session';
 import { RecipeService } from './recipe.service';
 import { SearchDto } from './dto/search.dto';
+import { GATE_TTL_MS } from 'src/auth/guards/gate.guard';
 
 @Controller('recipe')
 export class RecipeController {
@@ -32,9 +33,15 @@ export class RecipeController {
     if ('unlocked' in result) {
       if (result.unlocked === 'real') {
         session.vaultGate = 'real';
+        session.vaultGateUntil = Date.now() + GATE_TTL_MS;
         session.vaultLastActivity = Math.floor(Date.now() / 1000);
       } else {
         session.fakeUnlocked = true;
+        // Bị ép mở kho mồi -> đóng luôn cổng thật còn mở trên trình duyệt này
+        if (!session.userId) {
+          session.vaultGate = undefined;
+          session.vaultGateUntil = undefined;
+        }
       }
     }
     return result;

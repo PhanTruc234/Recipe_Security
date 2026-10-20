@@ -13,7 +13,10 @@ import {
 } from '@nestjs/common';
 import { ClientIp } from 'src/client-ip.decorator';
 import { CredentialService } from './credential.service';
-import { CreateCredentialDto } from './dto/create-credential.dto';
+import {
+  CreateCredentialDto,
+  NewCredentialDto,
+} from './dto/create-credential.dto';
 import { SessionData } from 'express-session';
 import { VaultGuard } from 'src/auth/guards/vault.guard';
 import { StepUpGuard } from 'src/auth/guards/step-up.guard';
@@ -36,7 +39,7 @@ export class CredentialController {
   @Post()
   async create(
     @Session() session: SessionData,
-    @Body() dto: CreateCredentialDto,
+    @Body() dto: NewCredentialDto,
     @ClientIp() ip: string,
     @Headers('user-agent') userAgent: string,
   ) {

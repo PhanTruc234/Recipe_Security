@@ -42,6 +42,7 @@ export function RegisterForm() {
     const onSubmit = handleSubmit(async ({ name, email, password }) => {
         setServerError('');
         const res = await register.mutateAsync({ name, email, password });
+        if (res.status === 404) return void router.replace('/');
         if (res.status === 409) {
             return setServerError('Email đã được sử dụng.');
         }

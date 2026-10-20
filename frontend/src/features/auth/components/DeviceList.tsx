@@ -5,6 +5,7 @@ import {
     useRevokeDevice,
     useRenameDevice,
 } from '@/features/auth/hooks/use-devices';
+import { useStepUp } from '@/features/auth/hooks/use-step-up';
 import type { DeviceSession } from '@/types';
 
 function describeUA(ua: string | null): string {
@@ -47,6 +48,8 @@ export function DeviceList() {
     const { data, isLoading, isError } = useDevices();
     const revoke = useRevokeDevice();
     const rename = useRenameDevice();
+    const step = useStepUp();
+    const [verifying, setVerifying] = useState(false);
     const [confirmId, setConfirmId] = useState<string | null>(null);
     const [renameId, setRenameId] = useState<string | null>(null);
     const [code, setCode] = useState('');
@@ -66,23 +69,20 @@ export function DeviceList() {
 
     async function onRevoke(deviceId: string) {
         setErr(null);
+        setVerifying(true);
         try {
-            const res = await revoke.mutateAsync({
-                deviceId,
-                code: code.trim() || undefined,
-            });
+            const stepUp = await step.build(code);
+            const res = await revoke.mutateAsync({ deviceId, stepUp });
             if (!res.ok) {
-                setErr(
-                    res.status === 401
-                        ? 'Cần mã 2FA đúng để thu hồi.'
-                        : (res.error ?? 'Không thu hồi được.'),
-                );
+                setErr(res.error ?? 'Không thu hồi được.');
                 return;
             }
             setConfirmId(null);
-            setCode('');
         } catch {
             setErr('Lỗi mạng — thử lại.');
+        } finally {
+            setVerifying(false);
+            setCode('');
         }
     }
 
@@ -230,18 +230,19 @@ export function DeviceList() {
                                 <input
                                     value={code}
                                     onChange={(e) => setCode(e.target.value)}
-                                    inputMode="numeric"
-                                    autoComplete="one-time-code"
-                                    placeholder="Mã 2FA nếu đã bật (6 số / mã dự phòng)"
+                                    type={step.uses2fa ? 'text' : 'password'}
+                                    inputMode={step.uses2fa ? 'numeric' : undefined}
+                                    autoComplete={step.uses2fa ? 'one-time-code' : 'current-password'}
+                                    placeholder={step.placeholder}
                                     className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
                                 />
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
-                                        disabled={revoke.isPending}
+                                        disabled={revoke.isPending || verifying || !step.ready || !code}
                                         className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                                     >
-                                        {revoke.isPending
+                                        {verifying || revoke.isPending
                                             ? 'Đang thu hồi...'
                                             : 'Xác nhận thu hồi'}
                                     </button>

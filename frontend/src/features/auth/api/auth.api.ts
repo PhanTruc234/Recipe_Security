@@ -6,6 +6,7 @@ import type {
     Enable2faResponse,
     OkResponse,
     DeviceSession,
+    StepUp,
 } from '@/types';
 
 export const authApi = {
@@ -26,11 +27,12 @@ export const authApi = {
     twofaDisable: (code: string) => apiRequest<OkResponse>({ url: '/auth/2fa/disable', method: 'POST', data: { code } }),
     dismissAlert: () => apiRequest({ url: '/auth/alert/dismiss', method: 'POST' }),
     sessions: () => apiFetch<DeviceSession[]>({ url: '/auth/sessions' }),
-    revokeSession: (deviceId: string, code?: string) =>
+    revokeSession: (deviceId: string, s: StepUp) =>
         apiRequest<OkResponse>({
             url: `/auth/sessions/${deviceId}/revoke`,
             method: 'POST',
-            headers: code ? { 'x-2fa-code': code } : undefined,
+            headers: s.code ? { 'x-2fa-code': s.code } : undefined,
+            data: s.reauth ? { reauth: s.reauth } : undefined,
         }),
     renameSession: (deviceId: string, label: string) =>
         apiRequest<OkResponse>({

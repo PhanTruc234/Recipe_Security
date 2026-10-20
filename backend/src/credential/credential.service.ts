@@ -1,8 +1,15 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
+import { QueryFailedError, Repository } from 'typeorm';
 import { Credential } from './entities/credential.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateCredentialDto } from './dto/create-credential.dto';
+import {
+  CreateCredentialDto,
+  NewCredentialDto,
+} from './dto/create-credential.dto';
 
 @Injectable()
 export class CredentialService {
@@ -30,14 +37,27 @@ export class CredentialService {
       },
     });
   }
-  async create(userId: string, dto: CreateCredentialDto) {
-    const item = this.credentialRepo.create({ userId, ...dto });
-    const saved = await this.credentialRepo.save(item);
-    return {
-      id: saved.id,
-      createdAt: saved.createdAt,
-      updatedAt: saved.updatedAt,
-    };
+  async create(userId: string, dto: NewCredentialDto) {
+    try {
+      // insert() luôn là INSERT: trùng id -> lỗi, KHÔNG bao giờ ghi đè
+      // (save() sẽ UPDATE nếu id đã tồn tại)
+      const r = await this.credentialRepo.insert({
+        id: dto.id,
+        userId,
+        ciphertext: dto.ciphertext,
+        iv: dto.iv,
+      });
+      const g = (r.generatedMaps[0] ?? {}) as Partial<Credential>;
+      return { id: dto.id, createdAt: g.createdAt, updatedAt: g.updatedAt };
+    } catch (e) {
+      if (
+        e instanceof QueryFailedError &&
+        (e.driverError as { code?: string } | undefined)?.code === '23505'
+      ) {
+        throw new ConflictException('Mục đã tồn tại');
+      }
+      throw e;
+    }
   }
   async update(id: string, userId: string, dto: CreateCredentialDto) {
     const item = await this.findOwned(id, userId);

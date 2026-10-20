@@ -5,6 +5,7 @@ declare module 'express-session' {
     userId?: string;
     role?: string;
     vaultGate?: 'real';
+    vaultGateUntil?: number;
     fakeUnlocked?: boolean;
     vaultLastActivity?: number;
     pendingTotpSecret?: string;

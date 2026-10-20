@@ -20,11 +20,14 @@ export function useScanBreaches() {
         try {
             let done = 0;
             for (const row of rows) {
+                if (KeyStore.getState().encryptionKey !== key) break; // kho vừa khóa
                 try {
-                    const data = await decryptCredential(key, { ciphertext: row.ciphertext, iv: row.iv });
+                    const { data } = await decryptCredential(key, row.id, { ciphertext: row.ciphertext, iv: row.iv });
                     const result = await checkPassword(data.password);
+                    // Trong lúc chờ HIBP kho có thể tự khóa -> khóa đã bị ghi 0, KHÔNG được mã hóa tiếp
+                    if (KeyStore.getState().encryptionKey !== key) break;
                     const updated = { ...data, breachCount: result.count, checkedAt: result.checkedAt };
-                    const blob = await encryptCredential(key, updated);
+                    const blob = await encryptCredential(key, row.id, updated);
                     await credentialApi.update(row.id, blob);
                 } catch {
                     // một mục lỗi không làm hỏng cả lượt quét

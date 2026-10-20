@@ -37,6 +37,10 @@ export class User {
   @Column({ default: false })
   totpEnabled: boolean;
 
+  // time-step TOTP đã dùng gần nhất (chống replay); ~5.9e7 nên integer đủ tới năm ~4000
+  @Column({ type: 'integer', nullable: true })
+  totpLastStep: number | null;
+
   @Column({ type: 'text', nullable: true })
   backupCodes: string | null;
 

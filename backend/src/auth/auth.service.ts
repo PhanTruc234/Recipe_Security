@@ -79,11 +79,22 @@ export class AuthService {
     return this.userRepo.findOne({ where: { id } });
   }
 
-  async enableTotp(userId: string, secret: string): Promise<string[]> {
+  // Step-up khi chưa bật 2FA: so authHash dẫn xuất lại với bản bcrypt đã lưu
+  verifyAuthHash(user: User, authHash: string): Promise<boolean> {
+    if (!authHash || authHash.length > 128) return Promise.resolve(false);
+    return bcrypt.compare(authHash, user.authHash);
+  }
+
+  async enableTotp(
+    userId: string,
+    secret: string,
+    step: number,
+  ): Promise<string[]> {
     const codes = this.totp.generateBackupCodes(8);
     await this.userRepo.update(userId, {
       totpSecret: this.crypto.encryptServer(secret),
       totpEnabled: true,
+      totpLastStep: step, // mã vừa dùng để bật cũng không được dùng lại
       backupCodes: JSON.stringify(this.totp.hashCodes(codes)),
     });
     return codes;
@@ -92,21 +103,42 @@ export class AuthService {
   async verifyTwoFactor(userId: string, code: string) {
     const user = await this.findById(userId);
     if (!user || !user.totpEnabled || !user.totpSecret) return null;
-    let ok = await this.totp.verify(
+
+    let ok = false;
+    const step = await this.totp.verifyStep(
       code,
       this.crypto.decryptServer(user.totpSecret),
+      user.totpLastStep,
     );
+    if (step !== null) {
+      // Ghi có điều kiện: 2 request song song cùng mã -> chỉ 1 cái cập nhật được
+      const r = await this.userRepo
+        .createQueryBuilder()
+        .update(User)
+        .set({ totpLastStep: step })
+        .where('id = :id', { id: userId })
+        .andWhere('("totpLastStep" IS NULL OR "totpLastStep" < :step)', {
+          step,
+        })
+        .execute();
+      ok = (r.affected ?? 0) === 1;
+    }
+
     if (!ok && user.backupCodes) {
       const rest = this.totp.matchAndConsume(
         code,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-        JSON.parse(user.backupCodes),
+        JSON.parse(user.backupCodes) as string[],
       );
       if (rest) {
-        ok = true;
-        await this.userRepo.update(userId, {
-          backupCodes: JSON.stringify(rest),
-        });
+        // Chỉ thắng nếu danh sách chưa bị request khác tiêu thụ trước
+        const r = await this.userRepo
+          .createQueryBuilder()
+          .update(User)
+          .set({ backupCodes: JSON.stringify(rest) })
+          .where('id = :id', { id: userId })
+          .andWhere('"backupCodes" = :old', { old: user.backupCodes })
+          .execute();
+        ok = (r.affected ?? 0) === 1;
       }
     }
 
@@ -122,6 +154,7 @@ export class AuthService {
     await this.userRepo.update(userId, {
       totpEnabled: false,
       totpSecret: null,
+      totpLastStep: null,
       backupCodes: null,
     });
   }
