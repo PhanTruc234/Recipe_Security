@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
   poweredByHeader: false, // bỏ header X-Powered-By (tránh lộ Next.js)
+  allowedDevOrigins: ['*.trycloudflare.com', '192.168.100.222', 'localhost', '127.0.0.1'],
   async headers() {
     return [
       {
@@ -23,7 +24,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: `${process.env.BACKEND_URL ?? "http://localhost:3000"}/api/:path*`,
+        destination: `${process.env.BACKEND_URL ?? "http://127.0.0.1:5000"}/api/:path*`,
       },
     ];
   },

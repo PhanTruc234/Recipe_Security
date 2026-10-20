@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const BACKEND = process.env.BACKEND_URL ?? 'http://localhost:3000';
+const BACKEND = process.env.BACKEND_URL ?? 'http://127.0.0.1:5000';
 
 function buildCsp(nonce: string): string {
     const isDev = process.env.NODE_ENV !== 'production';

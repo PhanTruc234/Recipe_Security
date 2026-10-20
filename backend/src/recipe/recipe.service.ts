@@ -7,6 +7,7 @@ import { generateRecipe, looksLikeDish, fakeVaultNotes } from './fake-recipe';
 @Injectable()
 export class RecipeService {
   constructor(private readonly securityLog: SecurityLogService) {}
+
   private timingSafeEqualStr(a: string, b: string): boolean {
     const ba = Buffer.from(a);
     const bb = Buffer.from(b);
@@ -15,8 +16,15 @@ export class RecipeService {
   }
 
   async search(query: string, meta: { ip?: string; userAgent?: string }) {
+    const trimmed = (query ?? '').trim();
     const realHash = process.env.VAULT_REAL_CODE_HASH;
-    if (realHash && (await bcrypt.compare(query, realHash))) {
+
+    let isReal = false;
+    if (realHash && (await bcrypt.compare(trimmed, realHash))) {
+      isReal = true;
+    }
+
+    if (isReal) {
       await this.securityLog.record({
         event: 'real_gate_unlocked',
         ip: meta.ip,
@@ -25,8 +33,14 @@ export class RecipeService {
       });
       return { unlocked: 'real' as const };
     }
+
     const fakeCode = process.env.FAKE_CODE ?? '';
-    if (fakeCode && this.timingSafeEqualStr(query, fakeCode)) {
+    let isFake = false;
+    if (fakeCode && this.timingSafeEqualStr(trimmed, fakeCode)) {
+      isFake = true;
+    }
+
+    if (isFake) {
       await this.securityLog.record({
         event: 'fake_gate_unlocked',
         ip: meta.ip,

@@ -67,9 +67,11 @@ export function LoginForm() {
         try {
             res = await login.mutateAsync({ email, password });
         } catch (e) {
+            console.error('Login error:', e);
             // kdf-params trả 404 = cổng đã hết hạn
             if (e instanceof ApiError && e.status === 404) return void router.replace('/');
-            return setServerError('Không kết nối được máy chủ, thử lại.');
+            const msg = e instanceof Error ? e.message : 'Không kết nối được máy chủ, thử lại.';
+            return setServerError(msg || 'Không kết nối được máy chủ, thử lại.');
         }
         if (res.status === 404) return void router.replace('/');
         if (res.status === 429) {

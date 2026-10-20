@@ -32,14 +32,23 @@ export function RecipeSearch({
             if (res.status === 429) return setMessage('Bạn tìm hơi nhanh, thử lại sau ít phút.');
             if (!res.ok || !res.data) return setMessage('Không tìm thấy món phù hợp.');
             const data = res.data;
-            if (data.unlocked === 'real') return void router.push('/login');
-            if (data.unlocked === 'fake') return void router.push('/fake');
+            if (data.unlocked === 'real') {
+                window.location.href = '/login';
+                return;
+            }
+            if (data.unlocked === 'fake') {
+                window.location.href = '/fake';
+                return;
+            }
             if (data.notFound || !data.recipe) {
                 setRecipe(null);
                 return setMessage('Không tìm thấy món phù hợp. Thử: phở, bún, chè...');
             }
             setRecipe(data.recipe);
             setMessage('');
+        },
+        onError: () => {
+            setMessage('Có lỗi xảy ra khi kết nối máy chủ.');
         },
     });
 

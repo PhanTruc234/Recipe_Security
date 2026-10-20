@@ -1,0 +1,18 @@
+{
+  "name": "recipe-security",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && pnpm run start:dev",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "build:backend": "cd backend && pnpm run build",
+    "build:frontend": "cd frontend && pnpm run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "start:backend": "cd backend && pnpm run start:prod",
+    "start:frontend": "cd frontend && pnpm run start",
+    "start": "npm run start:backend & npm run start:frontend",
+    "build:start": "npm run build && npm run start",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000"
+  }
+}

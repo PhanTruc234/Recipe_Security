@@ -6,6 +6,9 @@ export interface Sealed {
 }
 
 const importAesKey = async (key: Uint8Array, usage: KeyUsage[]): Promise<CryptoKey> => {
+    if (!crypto?.subtle) {
+        throw new Error('Trình duyệt chặn Web Crypto trên HTTP IP. Vui lòng truy cập qua http://localhost:3000 hoặc dùng HTTPS.');
+    }
     return crypto.subtle.importKey(
         'raw',
         key as BufferSource,

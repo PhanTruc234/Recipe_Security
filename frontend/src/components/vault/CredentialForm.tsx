@@ -17,6 +17,7 @@ const credentialSchema = z.object({
     username: z.string().max(120),
     password: z.string().min(1, 'Cần mật khẩu').max(256),
     note: z.string().max(1000),
+    requireRevealAuth: z.enum(['none', 'quick', 'pin', 'bio']),
 });
 type CredentialValues = z.infer<typeof credentialSchema>;
 
@@ -40,7 +41,14 @@ export function CredentialForm({ initial, busy, onSave, onCancel }: {
 
     const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CredentialValues>({
         resolver: zodResolver(credentialSchema),
-        defaultValues: { service: base.service, url: base.url, username: base.username, password: base.password, note: base.note },
+        defaultValues: {
+            service: base.service,
+            url: base.url,
+            username: base.username,
+            password: base.password,
+            note: base.note,
+            requireRevealAuth: base.requireRevealAuth ?? 'none',
+        },
     });
 
     const password = watch('password');
@@ -62,10 +70,15 @@ export function CredentialForm({ initial, busy, onSave, onCancel }: {
         }
     }
 
-    const onSubmit = handleSubmit(async (values) => {
+    const onSubmit = handleSubmit(async (values: CredentialValues) => {
         const valid = breach !== null && values.password === checkedPw;
         await onSave({
-            ...values,
+            service: values.service,
+            url: values.url,
+            username: values.username,
+            password: values.password,
+            note: values.note,
+            requireRevealAuth: values.requireRevealAuth,
             breachCount: valid ? breach : null,
             checkedAt: valid ? checkedAt : null,
         });
@@ -121,6 +134,16 @@ export function CredentialForm({ initial, busy, onSave, onCancel }: {
                 {showGen && (
                     <PasswordGenerator onUse={(pw) => { setValue('password', pw, { shouldValidate: true }); setShowGen(false); }} />
                 )}
+            </div>
+            <div>
+                <label className="text-sm">Bảo vệ khi xem mật khẩu</label>
+                <select className={input} {...register('requireRevealAuth')}>
+                    <option value="none">Không yêu cầu</option>
+                    <option value="quick">Mở khóa nhanh (Vân tay / Face ID / PIN)</option>
+                    <option value="pin">Mã PIN</option>
+                    <option value="bio">Vân tay / Face ID</option>
+                </select>
+                <p className="mt-1 text-xs text-stone-400">Yêu cầu xác minh mỗi lần xem mật khẩu.</p>
             </div>
             <div>
                 <label className="text-sm">Ghi chú</label>

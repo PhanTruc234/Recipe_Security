@@ -1,6 +1,8 @@
 import { seal, open, type Sealed } from './aead';
 import { bytesToUtf8, utf8ToBytes } from './encoding';
 
+export type RevealAuthMode = 'none' | 'quick' | 'pin' | 'bio';
+
 export interface CredentialData {
     service: string;
     url: string;
@@ -9,6 +11,7 @@ export interface CredentialData {
     note: string;
     breachCount: number | null;
     checkedAt: string | null;
+    requireRevealAuth?: RevealAuthMode;
 }
 
 export const emptyCredential = (): CredentialData => {
@@ -20,6 +23,7 @@ export const emptyCredential = (): CredentialData => {
         note: '',
         breachCount: null,
         checkedAt: null,
+        requireRevealAuth: 'none',
     };
 };
 

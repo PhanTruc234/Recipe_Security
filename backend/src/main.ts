@@ -52,11 +52,25 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  const allowedOrigins = [
+    process.env.CLIENT_ORIGIN,
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     credentials: true,
   });
   app.setGlobalPrefix('api');
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 5000;
+  await app.listen(port);
 }
 void bootstrap();

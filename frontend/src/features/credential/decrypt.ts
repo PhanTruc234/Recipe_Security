@@ -58,6 +58,7 @@ const toData = (i: VaultItem): CredentialData => ({
     note: i.note,
     breachCount: i.breachCount,
     checkedAt: i.checkedAt,
+    requireRevealAuth: i.requireRevealAuth,
 });
 
 // Mã hóa lại các mục định dạng cũ sang v2 (có AAD). Dừng ngay nếu kho vừa bị khóa:

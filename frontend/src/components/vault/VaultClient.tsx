@@ -11,6 +11,8 @@ import { DeleteConfirm } from './DeleteConfirm';
 import type { CredentialsResponse, StepUp } from '@/types';
 import type { CredentialData } from '@/libs/crypto/vault';
 import { TwoFactorSettings } from './TwoFactorSettings';
+import { QuickUnlockSettings } from './QuickUnlockSettings';
+import { RevealAuthModal } from './RevealAuthModal';
 import { useScanBreaches } from '@/features/credential/use-scan-breaches';
 import { VaultHealth } from './VaultHealth';
 import { useAutoLock } from '@/features/auth/hooks/use-auto-lock';
@@ -32,6 +34,7 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState<VaultItem | null>(null);
     const [revealed, setRevealed] = useState<string | null>(null);
+    const [authPromptItem, setAuthPromptItem] = useState<VaultItem | null>(null);
     const [toast, setToast] = useState('');
     const [failed, setFailed] = useState(0);
     const qc = useQueryClient();
@@ -73,6 +76,18 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
         const ok = await copyWithAutoClear(text, 15);
         setToast(ok ? `Đã chép ${label} — clipboard tự xóa sau 15 giây` : 'Trình duyệt không cho phép chép');
         setTimeout(() => setToast(''), 4000);
+    }
+
+    function handleToggleReveal(item: VaultItem) {
+        if (revealed === item.id) {
+            setRevealed(null);
+            return;
+        }
+        if (item.requireRevealAuth && item.requireRevealAuth !== 'none') {
+            setAuthPromptItem(item);
+            return;
+        }
+        setRevealed(item.id);
     }
 
     return (
@@ -127,6 +142,27 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
                                     {item.strength.level === 'yeu' && (
                                         <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700">Yếu</span>
                                     )}
+                                    {item.requireRevealAuth === 'bio' && (
+                                        <span title="Yêu cầu Touch ID / Vân tay khi xem" className="inline-flex items-center justify-center rounded-md border border-purple-200 bg-purple-50 p-1 text-purple-600">
+                                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 004.07 9.29m4.878 12.155A20.06 20.06 0 014 11" />
+                                            </svg>
+                                        </span>
+                                    )}
+                                    {item.requireRevealAuth === 'pin' && (
+                                        <span title="Yêu cầu Mã PIN khi xem" className="inline-flex items-center justify-center rounded-md border border-blue-200 bg-blue-50 p-1 text-blue-600">
+                                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                        </span>
+                                    )}
+                                    {item.requireRevealAuth === 'quick' && (
+                                        <span title="Yêu cầu Mở khóa nhanh khi xem" className="inline-flex items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 p-1 text-indigo-600">
+                                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                            </svg>
+                                        </span>
+                                    )}
                                 </div>
                                 {item.url && <span className="text-xs text-stone-400">{item.url}</span>}
                             </div>
@@ -145,13 +181,26 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
                         <div className="mt-1 flex items-center gap-2 text-sm">
                             <span className="w-20 text-stone-400">Mật khẩu</span>
                             <code className="rounded bg-stone-100 px-2 py-0.5">{revealed === item.id ? item.password : '•'.repeat(10)}</code>
-                            <button onClick={() => setRevealed(revealed === item.id ? null : item.id)} className="text-xs text-amber-700">{revealed === item.id ? 'Ẩn' : 'Hiện'}</button>
+                            <button onClick={() => handleToggleReveal(item)} className="text-xs text-amber-700">{revealed === item.id ? 'Ẩn' : 'Hiện'}</button>
                             <button onClick={() => onCopy(item.password, 'mật khẩu')} className="text-xs text-amber-700">Chép</button>
                         </div>
                         {item.note && <p className="mt-2 text-sm text-stone-600">{item.note}</p>}
                     </article>
                 ))}
             </div>
+
+            {authPromptItem && (
+                <RevealAuthModal
+                    item={authPromptItem}
+                    onSuccess={() => {
+                        setRevealed(authPromptItem.id);
+                        setAuthPromptItem(null);
+                    }}
+                    onCancel={() => setAuthPromptItem(null)}
+                />
+            )}
+
+            <QuickUnlockSettings />
             <TwoFactorSettings />
         </div>
     );

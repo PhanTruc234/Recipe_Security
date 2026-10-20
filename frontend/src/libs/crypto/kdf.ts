@@ -18,6 +18,9 @@ const hkdf = async (
     info: string,
     lengthBytes: number,
 ): Promise<Uint8Array> => {
+    if (!crypto?.subtle) {
+        throw new Error('Trình duyệt chặn Web Crypto trên HTTP IP. Vui lòng truy cập qua http://localhost:3000 hoặc dùng HTTPS.');
+    }
     const key = await crypto.subtle.importKey('raw', ikm as BufferSource, 'HKDF', false, [
         'deriveBits',
     ]);

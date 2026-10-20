@@ -42,12 +42,24 @@ export function TwoFactorSettings() {
 
     return (
         <aside className="mt-6 rounded-xl bg-white p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-widest text-amber-600">Xác thực 2 lớp</p>
-            <h2 className="text-lg font-semibold">Bảo mật tài khoản</h2>
-            <p className="mt-1 text-sm">
-                Trạng thái:{' '}
-                <strong className={enabled ? 'text-green-600' : 'text-stone-400'}>{enabled ? 'Đang bật' : 'Đang tắt'}</strong>
-            </p>
+            <p className="text-xs uppercase tracking-widest text-amber-600">Bảo mật</p>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold">Xác thực 2 yếu tố (2FA)</h2>
+                    <span className={`rounded px-1.5 py-0.5 text-xs ${enabled ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'}`}>
+                        {enabled ? 'Đang bật' : 'Chưa bật'}
+                    </span>
+                </div>
+                {mode === 'idle' && !enabled && (
+                    <button onClick={startSetup} disabled={setup.isPending}
+                        className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60">
+                        {setup.isPending ? 'Đang khởi tạo...' : 'Bật 2FA'}
+                    </button>
+                )}
+                {mode === 'idle' && enabled && (
+                    <button onClick={() => setMode('disable')} className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50">Tắt 2FA</button>
+                )}
+            </div>
 
             {error && <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
@@ -58,16 +70,6 @@ export function TwoFactorSettings() {
                         {backupCodes.map((c) => <code key={c} className="rounded bg-white px-2 py-1 text-center text-sm">{c}</code>)}
                     </div>
                 </div>
-            )}
-
-            {mode === 'idle' && !enabled && (
-                <button onClick={startSetup} disabled={setup.isPending}
-                    className="mt-3 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
-                    {setup.isPending ? 'Đang khởi tạo...' : 'Bật 2FA'}
-                </button>
-            )}
-            {mode === 'idle' && enabled && (
-                <button onClick={() => setMode('disable')} className="mt-3 rounded-lg border border-stone-300 px-4 py-2 text-sm">Tắt 2FA</button>
             )}
 
             {mode === 'setup' && (
