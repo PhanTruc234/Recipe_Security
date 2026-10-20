@@ -13,7 +13,7 @@ const LEVEL_LABEL: Record<Level, string> = {
     warn: 'Tên miền nghi ngờ', danger: 'CẢNH BÁO: tên miền nguy hiểm',
 };
 const REP_LABEL: Record<RepLevel, string> = {
-    clean: 'Sạch — không dịch vụ nào báo xấu', warn: 'Có dấu hiệu nghi ngờ',
+    clean: 'Chưa bị báo xấu — không đảm bảo an toàn tuyệt đối', warn: 'Có dấu hiệu nghi ngờ',
     danger: 'BỊ BÁO LÀ ĐỘC HẠI', unknown: 'Chưa có dữ liệu danh tiếng',
 };
 const repBox = (l: RepLevel) =>
@@ -51,9 +51,12 @@ export function UrlSafetyField({ url, boundDomain }: { url: string; boundDomain:
             </div>
 
             {verdict.registrableDomain && (
-                <button type="button" onClick={onDeepCheck} disabled={deepCheck.isPending} className="text-amber-700 disabled:opacity-50">
-                    {deepCheck.isPending ? 'Đang tra...' : 'Kiểm tra sâu'}
-                </button>
+                <div>
+                    <button type="button" onClick={onDeepCheck} disabled={deepCheck.isPending} className="text-amber-700 disabled:opacity-50">
+                        {deepCheck.isPending ? 'Đang tra...' : 'Kiểm tra sâu'}
+                    </button>
+                    <span className="ml-2 text-stone-400">(URL sẽ được gửi tới Google Safe Browsing và VirusTotal)</span>
+                </div>
             )}
             {error && <p className="text-red-600">{error}</p>}
 
@@ -67,6 +70,9 @@ export function UrlSafetyField({ url, boundDomain }: { url: string; boundDomain:
                         {rep.safeBrowsing?.configured && <li>{rep.safeBrowsing.detail}</li>}
                         {rep.virusTotal?.configured && <li>{rep.virusTotal.detail}</li>}
                     </ul>
+                    <p className="mt-0.5 opacity-75">
+                        Dựa trên danh sách đen — trang lừa đảo mới tạo có thể chưa bị ghi nhận.{rep.cached ? ' (kết quả lưu tạm trong 6 giờ)' : ''}
+                    </p>
                 </div>
             )}
         </div>
