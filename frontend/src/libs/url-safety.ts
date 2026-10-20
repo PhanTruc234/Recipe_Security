@@ -36,6 +36,8 @@ const PUBLIC_SUFFIXES = new Set([
   'gq', 'ml', 'cf', 'ga', 'work', 'click', 'link', 'app', 'dev', 'online', 'site', 'vn',
   'com.vn', 'net.vn', 'org.vn', 'edu.vn', 'gov.vn', 'co.uk', 'org.uk', 'com.au',
 ]);
+// Nhãn cấp 2 hay gặp dưới đuôi quốc gia (com.br, co.jp, or.kr, ac.uk...)
+const GENERIC_SLDS = new Set(['com', 'net', 'org', 'gov', 'edu', 'co', 'ac', 'or', 'ne', 'go', 'mil', 'info', 'biz']);
 
 function levenshtein(a: string, b: string): number {
   const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0));
@@ -60,6 +62,11 @@ function registrable(host: string): Reg | null {
     }
   }
   const n = labels.length;
+  // Đuôi quốc gia 2 cấp chưa có trong danh sách (com.br, co.jp, ac.kr...) -> lấy 3 nhãn cuối,
+  // nếu không sẽ coi "com" là tên miền chính và so nhầm với thương hiệu.
+  if (n >= 3 && labels[n - 1].length === 2 && GENERIC_SLDS.has(labels[n - 2])) {
+    return { reg: labels.slice(-3).join('.'), core: labels[n - 3], suffix: labels.slice(-2).join('.'), subCount: n - 3 };
+  }
   return { reg: labels.slice(-2).join('.'), core: labels[n - 2], suffix: labels[n - 1], subCount: n - 2 };
 }
 function rawHost(input: string): string {
@@ -140,13 +147,20 @@ export function assessUrl(input: string, boundDomain?: string | null): UrlVerdic
       if (core === b) break;
       if (sk === skeleton(b)) { add(50, `Nhìn GIỐNG "${b}" bằng ký tự đánh lừa`); matchedBrand = b; break; }
       const d = levenshtein(core, b);
-      if (d > 0 && d <= 2 && Math.abs(core.length - b.length) <= 2) {
+      // Thương hiệu ngắn (momo, tiki, bidv...) lệch 2 ký tự là ra từ khác hẳn -> chỉ cho lệch 1
+      const maxDist = b.length <= 5 ? 1 : 2;
+      if (d > 0 && d <= maxDist && Math.abs(core.length - b.length) <= maxDist) {
         add(40, `Gõ NHÁI "${b}" (chỉ khác ${d} ký tự)`); matchedBrand = b; break;
       }
     }
     if (!matchedBrand) {
       const hit = BRAND_CORES.find((b) => host.includes(b) && core !== b);
-      if (hit) { add(45, `"${hit}" chỉ nằm ở subdomain — tên miền thật là "${reg.reg}"`); matchedBrand = hit; }
+      if (hit) {
+        add(45, core.includes(hit)
+          ? `Ghép tên "${hit}" vào tên miền lạ "${reg.reg}" — không phải tên miền chính thức`
+          : `"${hit}" chỉ nằm ở subdomain — tên miền thật là "${reg.reg}"`);
+        matchedBrand = hit;
+      }
     }
   }
 
