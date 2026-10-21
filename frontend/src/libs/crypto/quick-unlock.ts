@@ -177,9 +177,8 @@ export async function setupBiometricsUnlock(): Promise<{ ok: boolean; error?: st
     if (!currentKey) {
         return { ok: false, error: 'Kho chưa được mở — không thể kích hoạt sinh trắc học' };
     }
-    const supported = await isBiometricsAvailable();
-    if (!supported) {
-        return { ok: false, error: 'Thiết bị này không hỗ trợ cảm biến sinh trắc học (Touch ID / Windows Hello)' };
+    if (typeof window === 'undefined' || !window.PublicKeyCredential) {
+        return { ok: false, error: 'Thiết bị hoặc trình duyệt không hỗ trợ WebAuthn' };
     }
 
     try {
@@ -190,19 +189,23 @@ export async function setupBiometricsUnlock(): Promise<{ ok: boolean; error?: st
         const cred = (await navigator.credentials.create({
             publicKey: {
                 challenge,
-                rp: { name: 'Recipe Security (Bếp Nhà)' },
+                rp: {
+                    id: window.location.hostname,
+                    name: 'Bếp Nhà',
+                },
                 user: {
                     id: userId,
                     name: 'vault-user',
                     displayName: 'Chủ sở hữu kho',
                 },
                 pubKeyCredParams: [
-                    { type: 'public-key', alg: -7 }, // ES256
+                    { type: 'public-key', alg: -7 }, // ES256 (Apple Secure Enclave)
                     { type: 'public-key', alg: -257 }, // RS256
                 ],
                 authenticatorSelection: {
                     authenticatorAttachment: 'platform',
-                    userVerification: 'required',
+                    userVerification: 'preferred',
+                    residentKey: 'preferred',
                 },
                 timeout: 60000,
             },
@@ -213,20 +216,26 @@ export async function setupBiometricsUnlock(): Promise<{ ok: boolean; error?: st
         }
 
         // Sinh khóa wrap ngẫu nhiên và mã hóa encryptionKey
-        const bioSalt = crypto.getRandomValues(new Uint8Array(16));
         const bioWrapKey = crypto.getRandomValues(new Uint8Array(32));
         const blob = await seal(currentKey, bioWrapKey, 'bepnha-bio-aad-v1');
 
         const config: StoredBioConfig = {
             credentialId: bytesToBase64(new Uint8Array(cred.rawId)),
-            salt: bytesToBase64(bioWrapKey), // Khóa bọc được lưu an toàn gắn liền với credential
+            salt: bytesToBase64(bioWrapKey),
             blob,
         };
 
         localStorage.setItem(BIO_STORAGE_KEY, JSON.stringify(config));
         return { ok: true };
     } catch (err: unknown) {
+        const name = err instanceof Error ? err.name : '';
         const msg = err instanceof Error ? err.message : String(err);
+        if (name === 'NotAllowedError') {
+            return {
+                ok: false,
+                error: 'Yêu cầu bị từ chối hoặc hủy. Vui lòng bật "Mật khẩu & Chuỗi khóa iCloud" trong Cài đặt iPhone và thử lại.',
+            };
+        }
         return { ok: false, error: 'Không thể kích hoạt sinh trắc học: ' + msg };
     }
 }
@@ -255,13 +264,14 @@ export async function unlockWithBiometrics(): Promise<{ ok: boolean; error?: str
         const assertion = (await navigator.credentials.get({
             publicKey: {
                 challenge,
+                rpId: window.location.hostname,
                 allowCredentials: [
                     {
                         type: 'public-key',
                         id: credId as BufferSource,
                     },
                 ],
-                userVerification: 'required',
+                userVerification: 'preferred',
                 timeout: 60000,
             },
         })) as PublicKeyCredential | null;

@@ -64,7 +64,7 @@ export function RevealAuthModal({ item, onSuccess, onCancel }: Props) {
         const res = await setupBiometricsUnlock();
         if (!res.ok) {
             setBusy(false);
-            setError(res.error ?? 'Không thể kích hoạt Touch ID trên tên miền này.');
+            setError(res.error ?? 'Không thể kích hoạt sinh trắc học trên thiết bị này.');
             return;
         }
         setHasBio(true);

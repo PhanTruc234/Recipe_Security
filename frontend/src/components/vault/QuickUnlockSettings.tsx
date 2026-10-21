@@ -77,7 +77,6 @@ export function QuickUnlockSettings() {
             return;
         }
 
-        setBusy(true);
         const res = await setupBiometricsUnlock();
         setBusy(false);
 
