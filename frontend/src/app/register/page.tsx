@@ -1,9 +1,11 @@
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
 import Link from "next/link";
+import { connection } from "next/server";
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+    await connection();
     return (
-        <main className="flex min-h-screen flex-1 flex-col items-center justify-center bg-gradient-to-b from-amber-50 via-amber-50/70 to-orange-50/40 px-4 py-12">
+        <main className="flex min-h-screen flex-1 flex-col items-center justify-center bg-linear-to-b from-amber-50 via-amber-50/70 to-orange-50/40 px-4 py-12">
             <div className="w-full max-w-md">
                 <section className="rounded-3xl border border-amber-200/70 bg-white/95 p-8 shadow-2xl shadow-amber-900/10 backdrop-blur-sm sm:p-10">
                     <div className="mb-6 flex items-center justify-between">
