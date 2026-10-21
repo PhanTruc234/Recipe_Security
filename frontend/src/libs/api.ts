@@ -6,6 +6,7 @@ export interface ApiResult<T> {
     status: number;
     data: T | null;
     error: string | null;
+    errorBody: unknown; // body gốc khi lỗi (vd: { remaining } của PIN)
 }
 
 export class ApiError extends Error {
@@ -38,7 +39,7 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<ApiResu
         error = Array.isArray(m) ? String(m[0]) : typeof m === 'string' ? m : null;
     }
 
-    return { ok, status: res.status, data: ok ? (body as T) : null, error };
+    return { ok, status: res.status, data: ok ? (body as T) : null, error, errorBody: ok ? null : body };
 }
 export async function apiFetch<T>(config: AxiosRequestConfig): Promise<T> {
     const r = await apiRequest<T>(config);

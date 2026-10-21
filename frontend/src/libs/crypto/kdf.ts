@@ -12,7 +12,7 @@ export const generateKdfSalt = (): string => {
     return bytesToBase64(crypto.getRandomValues(new Uint8Array(16)));
 };
 
-const hkdf = async (
+export const hkdf = async (
     ikm: Uint8Array,
     salt: Uint8Array,
     info: string,

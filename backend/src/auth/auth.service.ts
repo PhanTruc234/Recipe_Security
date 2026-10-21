@@ -6,12 +6,17 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 import { User } from './entities/auth.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { TotpService } from './totp.service';
 import { CryptoService } from './crypto.service';
+
+const MAX_PIN_FAILS = 3;
+
+// Cùng cost 12 với authHash thật để bcrypt.compare tốn cùng thời gian
+const DUMMY_AUTH_HASH = bcrypt.hashSync(randomBytes(32).toString('base64'), 12);
 
 @Injectable()
 export class AuthService {
@@ -21,7 +26,7 @@ export class AuthService {
     private readonly totp: TotpService,
     private readonly crypto: CryptoService,
     // eslint-disable-next-line prettier/prettier
-  ) { }
+  ) {}
   private sessionResult(user: User) {
     return {
       id: user.id,
@@ -53,7 +58,12 @@ export class AuthService {
     const email = dto.email.toLowerCase();
     const user = await this.userRepo.findOne({ where: { email } });
 
-    const valid = user && (await bcrypt.compare(dto.authHash, user.authHash));
+    // Email không tồn tại vẫn chạy bcrypt với hash giả -> thời gian phản hồi như nhau,
+    // không dò được email qua timing (nếu không, salt giả ở kdf-params mất tác dụng).
+    const valid = await bcrypt.compare(
+      dto.authHash,
+      user?.authHash ?? DUMMY_AUTH_HASH,
+    );
     if (!user || !valid) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
@@ -150,6 +160,59 @@ export class AuthService {
       kdfSalt: user.kdfSalt,
     };
   }
+  // ===== Mở khóa nhanh bằng PIN =====
+
+  async setupPin(userId: string, proof: string): Promise<string> {
+    const share = randomBytes(32).toString('base64');
+    await this.userRepo.update(userId, {
+      pinVerifier: await bcrypt.hash(proof, 10),
+      pinShare: this.crypto.encryptServer(share),
+      pinFails: 0,
+    });
+    return share;
+  }
+
+  async clearPin(userId: string): Promise<void> {
+    await this.userRepo.update(userId, {
+      pinVerifier: null,
+      pinShare: null,
+      pinFails: 0,
+    });
+  }
+
+  async unlockPin(
+    userId: string,
+    proof: string,
+  ): Promise<{ share: string } | { remaining: number }> {
+    // "Giữ chỗ" 1 lượt thử TRƯỚC khi so: tăng pinFails có điều kiện < MAX.
+    // Nhờ vậy gửi song song nhiều request cũng không thử quá MAX_PIN_FAILS lần.
+    const reserved = await this.userRepo
+      .createQueryBuilder()
+      .update(User)
+      .set({ pinFails: () => '"pinFails" + 1' })
+      .where('id = :id', { id: userId })
+      .andWhere('"pinVerifier" IS NOT NULL AND "pinFails" < :max', {
+        max: MAX_PIN_FAILS,
+      })
+      .execute();
+    if ((reserved.affected ?? 0) === 0) {
+      await this.clearPin(userId);
+      return { remaining: 0 };
+    }
+
+    const user = await this.findById(userId);
+    if (!user?.pinVerifier || !user.pinShare) return { remaining: 0 };
+
+    if (await bcrypt.compare(proof, user.pinVerifier)) {
+      await this.userRepo.update(userId, { pinFails: 0 });
+      return { share: this.crypto.decryptServer(user.pinShare) };
+    }
+
+    const remaining = MAX_PIN_FAILS - user.pinFails;
+    if (remaining <= 0) await this.clearPin(userId);
+    return { remaining: Math.max(0, remaining) };
+  }
+
   async disableTotp(userId: string): Promise<void> {
     await this.userRepo.update(userId, {
       totpEnabled: false,

@@ -17,6 +17,8 @@ import { useScanBreaches } from '@/features/credential/use-scan-breaches';
 import { VaultHealth } from './VaultHealth';
 import { useAutoLock } from '@/features/auth/hooks/use-auto-lock';
 import { copyWithAutoClear } from '@/libs/clipboard';
+type GuardedAction = 'reveal' | 'copy' | 'edit';
+
 export function VaultClient({ initialCredentials }: { initialCredentials: CredentialsResponse }) {
     const unlocked = KeyStore((s) => s.unlocked);
     if (!unlocked) return <UnlockScreen />;
@@ -34,7 +36,7 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
     const [creating, setCreating] = useState(false);
     const [deleting, setDeleting] = useState<VaultItem | null>(null);
     const [revealed, setRevealed] = useState<string | null>(null);
-    const [authPromptItem, setAuthPromptItem] = useState<VaultItem | null>(null);
+    const [authPrompt, setAuthPrompt] = useState<{ item: VaultItem; action: GuardedAction } | null>(null);
     const [toast, setToast] = useState('');
     const [failed, setFailed] = useState(0);
     const qc = useQueryClient();
@@ -78,16 +80,28 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
         setTimeout(() => setToast(''), 4000);
     }
 
+    function runAction(item: VaultItem, action: GuardedAction) {
+        if (action === 'reveal') setRevealed(item.id);
+        else if (action === 'copy') void onCopy(item.password, 'mật khẩu');
+        else { setEditing(item); setCreating(false); }
+    }
+
+    // Mọi đường lộ mật khẩu (Hiện / Chép / Sửa) đi qua cùng một cổng xác thực.
+    // Lưu ý: đây là lớp chống nhìn trộm trên giao diện — dữ liệu đã giải mã trong RAM.
+    function guarded(item: VaultItem, action: GuardedAction) {
+        if (item.requireRevealAuth && item.requireRevealAuth !== 'none') {
+            setAuthPrompt({ item, action });
+            return;
+        }
+        runAction(item, action);
+    }
+
     function handleToggleReveal(item: VaultItem) {
         if (revealed === item.id) {
             setRevealed(null);
             return;
         }
-        if (item.requireRevealAuth && item.requireRevealAuth !== 'none') {
-            setAuthPromptItem(item);
-            return;
-        }
-        setRevealed(item.id);
+        guarded(item, 'reveal');
     }
 
     return (
@@ -167,7 +181,7 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
                                 {item.url && <span className="text-xs text-stone-400">{item.url}</span>}
                             </div>
                             <div className="flex gap-3 text-sm">
-                                <button onClick={() => { setEditing(item); setCreating(false); }} className="text-amber-700">Sửa</button>
+                                <button onClick={() => guarded(item, 'edit')} className="text-amber-700">Sửa</button>
                                 <button onClick={() => setDeleting(item)} className="text-red-600">Xóa</button>
                             </div>
                         </div>
@@ -182,21 +196,21 @@ function VaultContent({ initialCredentials }: { initialCredentials: CredentialsR
                             <span className="w-20 text-stone-400">Mật khẩu</span>
                             <code className="rounded bg-stone-100 px-2 py-0.5">{revealed === item.id ? item.password : '•'.repeat(10)}</code>
                             <button onClick={() => handleToggleReveal(item)} className="text-xs text-amber-700">{revealed === item.id ? 'Ẩn' : 'Hiện'}</button>
-                            <button onClick={() => onCopy(item.password, 'mật khẩu')} className="text-xs text-amber-700">Chép</button>
+                            <button onClick={() => guarded(item, 'copy')} className="text-xs text-amber-700">Chép</button>
                         </div>
                         {item.note && <p className="mt-2 text-sm text-stone-600">{item.note}</p>}
                     </article>
                 ))}
             </div>
 
-            {authPromptItem && (
+            {authPrompt && (
                 <RevealAuthModal
-                    item={authPromptItem}
+                    item={authPrompt.item}
                     onSuccess={() => {
-                        setRevealed(authPromptItem.id);
-                        setAuthPromptItem(null);
+                        runAction(authPrompt.item, authPrompt.action);
+                        setAuthPrompt(null);
                     }}
-                    onCancel={() => setAuthPromptItem(null)}
+                    onCancel={() => setAuthPrompt(null)}
                 />
             )}
 

@@ -5,6 +5,7 @@ import { computeAuthHash, KeyStore } from '@/stores/key.store';
 import { generateKdfSalt } from '@/libs/crypto/kdf';
 import { makeVerifier, checkVerifier } from '@/libs/crypto/vault';
 import { authApi } from '../api/auth.api';
+import { clearQuickUnlockLocal, hasPinConfigured } from '@/libs/crypto/quick-unlock';
 
 export function useRegister() {
     const qc = useQueryClient();
@@ -67,6 +68,10 @@ export function useLogout() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: async () => {
+            // Máy dùng chung: đăng xuất phải xóa luôn PIN / sinh trắc học của máy này
+            // (PIN thì hủy cả share trên server, trước khi phiên bị hủy)
+            if (hasPinConfigured()) await authApi.pinDisable().catch(() => undefined);
+            clearQuickUnlockLocal();
             await authApi.logout();
             KeyStore.getState().lock('manual');
             await qc.invalidateQueries({ queryKey: ['session'] });

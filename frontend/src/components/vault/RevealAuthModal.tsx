@@ -5,8 +5,6 @@ import type { VaultItem } from '@/features/credential/decrypt';
 import {
     hasPinConfigured,
     hasBiometricsConfigured,
-    isBiometricsAvailable,
-    setupBiometricsUnlock,
     unlockWithPin,
     unlockWithBiometrics,
 } from '@/libs/crypto/quick-unlock';
@@ -29,13 +27,11 @@ export function RevealAuthModal({ item, onSuccess, onCancel }: Props) {
 
     const [hasBio, setHasBio] = useState(false);
     const [hasPin, setHasPin] = useState(false);
-    const [bioSupported, setBioSupported] = useState(false);
     const unlock = KeyStore((s) => s.unlock);
 
     useEffect(() => {
         setHasBio(hasBiometricsConfigured());
         setHasPin(hasPinConfigured());
-        isBiometricsAvailable().then(setBioSupported);
     }, []);
 
     // Tự động kích hoạt vân tay nếu mục yêu cầu bio hoặc quick và đã cài đặt
@@ -56,20 +52,6 @@ export function RevealAuthModal({ item, onSuccess, onCancel }: Props) {
         } else {
             setError(res.error ?? 'Xác thực vân tay thất bại.');
         }
-    }
-
-    async function handleSetupAndTriggerBio() {
-        setError('');
-        setBusy(true);
-        const res = await setupBiometricsUnlock();
-        if (!res.ok) {
-            setBusy(false);
-            setError(res.error ?? 'Không thể kích hoạt Touch ID trên tên miền này.');
-            return;
-        }
-        setHasBio(true);
-        setBusy(false);
-        onSuccess();
     }
 
     async function handlePinSubmit(e: React.FormEvent) {
@@ -135,11 +117,13 @@ export function RevealAuthModal({ item, onSuccess, onCancel }: Props) {
 
                 <div className="mt-4 space-y-3">
                     {/* 1. Nút Vân tay / Face ID */}
+                    {/* Chỉ dùng sinh trắc học ĐÃ cài (cài mới phải qua Cài đặt + mật khẩu chủ):
+                        nếu cho "cài rồi coi là đạt" thì người cầm máy chỉ cần đăng ký vân tay của họ */}
                     {(mode === 'bio' || mode === 'quick') && !showPasswordFallback && (
-                        (hasBio || bioSupported) ? (
+                        hasBio ? (
                             <button
                                 type="button"
-                                onClick={hasBio ? triggerBiometrics : handleSetupAndTriggerBio}
+                                onClick={triggerBiometrics}
                                 disabled={busy}
                                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-500 bg-amber-500 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-60"
                             >
@@ -180,9 +164,9 @@ export function RevealAuthModal({ item, onSuccess, onCancel }: Props) {
 
                     {/* 3. Mật khẩu chủ */}
                     {(showPasswordFallback ||
-                      (mode === 'bio' && !hasBio && !bioSupported) ||
+                      (mode === 'bio' && !hasBio) ||
                       (mode === 'pin' && !hasPin) ||
-                      (mode === 'quick' && !hasBio && !hasPin && !bioSupported)) ? (
+                      (mode === 'quick' && !hasBio && !hasPin)) ? (
                         <form onSubmit={handlePasswordSubmit} className="space-y-2">
                             <input
                                 type="password"

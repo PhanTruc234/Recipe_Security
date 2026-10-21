@@ -24,6 +24,8 @@ import { SessionData } from 'express-session';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import { StepUpGuard } from './guards/step-up.guard';
 import { GateGuard, isGateOpen } from './guards/gate.guard';
+import { VaultGuard } from './guards/vault.guard';
+import { PinProofDto } from './dto/pin-proof.dto';
 import { SecurityLogService } from 'src/security-log/security-log.service';
 import { Throttle } from '@nestjs/throttler';
 import { TotpService } from './totp.service';
@@ -490,6 +492,75 @@ export class AuthController {
     if (session.device?.deviceId === deviceId) {
       session.device.label = label;
     }
+    return { ok: true };
+  }
+
+  // ===== Mở khóa nhanh bằng PIN (server giữ nửa bí mật) =====
+
+  // Chỉ cài được khi kho đang mở (đã chứng minh mật khẩu chủ ở client)
+  @UseGuards(VaultGuard)
+  @Post('pin/setup')
+  async setupPin(
+    @Session() session: SessionData,
+    @Body() dto: PinProofDto,
+    @ClientIp() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    const share = await this.authService.setupPin(session.userId, dto.proof);
+    await this.securityLog.record({
+      event: 'pin_enabled',
+      userId: session.userId,
+      ip,
+      userAgent,
+    });
+    return { share };
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('pin/unlock')
+  async unlockPin(
+    @Session() session: SessionData,
+    @Body() dto: PinProofDto,
+    @ClientIp() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    const result = await this.authService.unlockPin(session.userId, dto.proof);
+    if ('share' in result) {
+      session.vaultLastActivity = Math.floor(Date.now() / 1000);
+      return { share: result.share };
+    }
+    await this.securityLog.record({
+      event: 'pin_failed',
+      userId: session.userId,
+      ip,
+      userAgent,
+      context: { remaining: result.remaining },
+    });
+    throw new UnauthorizedException({
+      statusCode: 401,
+      message:
+        result.remaining > 0
+          ? `Mã PIN không đúng. Bạn còn ${result.remaining} lần thử.`
+          : 'Sai PIN quá 3 lần — PIN đã bị hủy, hãy dùng mật khẩu chủ.',
+      remaining: result.remaining,
+    });
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Post('pin/disable')
+  async disablePin(
+    @Session() session: SessionData,
+    @ClientIp() ip: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    await this.authService.clearPin(session.userId);
+    await this.securityLog.record({
+      event: 'pin_disabled',
+      userId: session.userId,
+      ip,
+      userAgent,
+    });
     return { ok: true };
   }
 

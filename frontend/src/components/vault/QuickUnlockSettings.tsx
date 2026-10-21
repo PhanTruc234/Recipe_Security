@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import {
     hasPinConfigured,
-    clearPinConfig,
+    disablePinUnlock,
     setupPinUnlock,
     isBiometricsAvailable,
     hasBiometricsConfigured,
@@ -19,6 +19,9 @@ export function QuickUnlockSettings() {
     const [showPinModal, setShowPinModal] = useState(false);
     const [pin, setPin] = useState('');
     const [pinConfirm, setPinConfirm] = useState('');
+    const [showBioModal, setShowBioModal] = useState(false);
+    // Bật PIN / sinh trắc học phải nhập lại mật khẩu chủ
+    const [masterPw, setMasterPw] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [busy, setBusy] = useState(false);
@@ -42,8 +45,9 @@ export function QuickUnlockSettings() {
         }
 
         setBusy(true);
-        const res = await setupPinUnlock(pin);
+        const res = await setupPinUnlock(pin, masterPw);
         setBusy(false);
+        setMasterPw('');
 
         if (!res.ok) {
             setError(res.error ?? 'Không thể lưu mã PIN.');
@@ -58,15 +62,15 @@ export function QuickUnlockSettings() {
         setTimeout(() => setSuccess(''), 3000);
     }
 
-    function handleRemovePin() {
-        if (!confirm('Tắt mở khóa bằng mã PIN trên thiết bị này?')) return;
-        clearPinConfig();
+    async function handleRemovePin() {
+        if (!confirm('Tắt mở khóa bằng mã PIN?')) return;
+        await disablePinUnlock();
         setPinEnabled(false);
         setSuccess('Đã tắt mã PIN.');
         setTimeout(() => setSuccess(''), 3000);
     }
 
-    async function handleToggleBio() {
+    function handleToggleBio() {
         setError('');
         if (bioEnabled) {
             if (!confirm('Tắt mở khóa sinh trắc học trên thiết bị này?')) return;
@@ -76,16 +80,23 @@ export function QuickUnlockSettings() {
             setTimeout(() => setSuccess(''), 3000);
             return;
         }
+        setShowBioModal(true);
+    }
 
+    async function handleEnableBio(e: React.FormEvent) {
+        e.preventDefault();
+        setError('');
         setBusy(true);
-        const res = await setupBiometricsUnlock();
+        const res = await setupBiometricsUnlock(masterPw);
         setBusy(false);
+        setMasterPw('');
 
         if (!res.ok) {
             setError(res.error ?? 'Không thể kích hoạt sinh trắc học.');
             return;
         }
 
+        setShowBioModal(false);
         setBioEnabled(true);
         setSuccess('Đã kích hoạt sinh trắc học.');
         setTimeout(() => setSuccess(''), 3000);
@@ -203,10 +214,24 @@ export function QuickUnlockSettings() {
                                 />
                             </div>
 
+                            <div>
+                                <input
+                                    type="password"
+                                    autoComplete="current-password"
+                                    value={masterPw}
+                                    onChange={(e) => setMasterPw(e.target.value)}
+                                    placeholder="Mật khẩu chủ (xác nhận chủ kho)"
+                                    required
+                                    className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
+                                />
+                            </div>
+
+                            {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+
                             <div className="mt-4 flex gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => { setShowPinModal(false); setPin(''); setPinConfirm(''); }}
+                                    onClick={() => { setShowPinModal(false); setPin(''); setPinConfirm(''); setMasterPw(''); }}
                                     className="flex-1 rounded-lg border border-stone-200 py-2 text-sm text-stone-600 hover:bg-stone-50"
                                 >
                                     Hủy
@@ -217,6 +242,46 @@ export function QuickUnlockSettings() {
                                     className="flex-1 rounded-lg bg-amber-600 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
                                 >
                                     {busy ? 'Đang lưu...' : 'Lưu'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal xác nhận mật khẩu chủ trước khi bật sinh trắc học */}
+            {showBioModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+                        <h3 className="text-base font-semibold text-stone-800">Bật Vân tay / Face ID</h3>
+                        <p className="mt-1 text-xs text-stone-400">Nhập mật khẩu chủ để xác nhận bạn là chủ kho.</p>
+
+                        <form onSubmit={handleEnableBio} className="mt-4 space-y-3">
+                            <input
+                                type="password"
+                                autoComplete="current-password"
+                                value={masterPw}
+                                onChange={(e) => setMasterPw(e.target.value)}
+                                placeholder="Mật khẩu chủ"
+                                required
+                                autoFocus
+                                className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
+                            />
+                            {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{error}</div>}
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowBioModal(false); setMasterPw(''); setError(''); }}
+                                    className="flex-1 rounded-lg border border-stone-200 py-2 text-sm text-stone-600 hover:bg-stone-50"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={busy}
+                                    className="flex-1 rounded-lg bg-amber-600 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+                                >
+                                    {busy ? 'Đang xử lý...' : 'Tiếp tục'}
                                 </button>
                             </div>
                         </form>

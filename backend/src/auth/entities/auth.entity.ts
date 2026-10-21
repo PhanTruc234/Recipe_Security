@@ -44,6 +44,18 @@ export class User {
   @Column({ type: 'text', nullable: true })
   backupCodes: string | null;
 
+  // Mở khóa nhanh bằng PIN: server giữ "nửa bí mật" (pinShare, mã hóa AES-GCM) và
+  // chỉ trả ra khi bằng chứng PIN đúng -> thiết bị bị chép localStorage cũng không
+  // dò PIN offline được; sai 3 lần thì xóa luôn.
+  @Column({ type: 'text', nullable: true })
+  pinVerifier: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  pinShare: string | null;
+
+  @Column({ type: 'integer', default: 0 })
+  pinFails: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

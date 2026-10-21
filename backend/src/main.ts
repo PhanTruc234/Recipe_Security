@@ -52,20 +52,22 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  const allowedOrigins = [
-    process.env.CLIENT_ORIGIN,
-    'http://localhost:3001',
-    'http://localhost:3000',
-    'http://localhost:5173',
-  ].filter(Boolean) as string[];
+  // Origin localhost chỉ dùng khi dev; production chỉ nhận CLIENT_ORIGIN
+  const devOrigins =
+    process.env.NODE_ENV === 'production'
+      ? []
+      : [
+        'http://localhost:3001',
+        'http://localhost:3000',
+        'http://localhost:5173',
+      ];
+  const allowedOrigins = [process.env.CLIENT_ORIGIN, ...devOrigins].filter(
+    (o): o is string => !!o,
+  );
 
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(null, true);
-      }
+      callback(null, !origin || allowedOrigins.includes(origin));
     },
     credentials: true,
   });

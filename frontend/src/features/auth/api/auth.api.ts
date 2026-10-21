@@ -40,4 +40,9 @@ export const authApi = {
             method: 'POST',
             data: { label },
         }),
+    pinSetup: (proof: string) =>
+        apiRequest<{ share: string }>({ url: '/auth/pin/setup', method: 'POST', data: { proof } }),
+    pinUnlock: (proof: string) =>
+        apiRequest<{ share: string }>({ url: '/auth/pin/unlock', method: 'POST', data: { proof } }),
+    pinDisable: () => apiRequest<OkResponse>({ url: '/auth/pin/disable', method: 'POST' }),
 };
